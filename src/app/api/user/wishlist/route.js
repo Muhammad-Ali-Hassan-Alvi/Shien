@@ -1,5 +1,5 @@
 import connectDB from "@/app/lib/config/db";
-import User from "@/app/lib/model/user";
+import User from "@/app/lib/model/User";
 import Product from "@/app/lib/model/Product"; // Ensure model is registered
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
