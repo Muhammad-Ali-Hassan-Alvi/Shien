@@ -14,16 +14,23 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         const formData = new FormData(e.currentTarget);
-        const phone = formData.get("phone");
+        const identifier = formData.get("identifier");
         const password = formData.get("password");
 
         try {
-            const result = await authenticate(phone, password);
+            const result = await authenticate(identifier, password);
             if (result?.error) {
                 toast.error(result.error);
             } else {
-                router.push('/');
                 toast.success("Welcome back!");
+                // Refresh to ensure middleware/server components see the new session
+                router.refresh();
+
+                if (result.role === 'admin') {
+                    router.push('/seller-center');
+                } else {
+                    router.push('/');
+                }
             }
         } catch (err) {
             toast.error("Login failed");
@@ -39,11 +46,11 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium text-gray-700">Phone</label>
+                        <label className="text-sm font-medium text-gray-700">Email or Phone</label>
                         <input
-                            name="phone"
-                            type="tel"
-                            placeholder="03001234567"
+                            name="identifier"
+                            type="text"
+                            placeholder="admin@admin.com or 03001234567"
                             required
                             className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black"
                         />

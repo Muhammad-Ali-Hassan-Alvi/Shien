@@ -1,16 +1,47 @@
 "use server";
 
+// src/app/lib/actions.js
+// We need to fetch the user to know the role before signing in? 
+// Or sign in and then get the session? 
+// The signIn function runs authorize. authorize returns the user. 
+// Standard NextAuth v5 signIn doesn't easily return the user object to the caller if redirect is false, 
+// it returns a result object or throws.
+// Let's modify the flow:
+
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import User from "./model/User";
+import connectDB from "./config/db";
 
-export async function authenticate(phone, password) {
+export async function authenticate(identifier, password) {
     try {
+        // 1. Check role manually first (optional, but ensures we know where to go)
+        await connectDB();
+        const user = await User.findOne({
+            $or: [{ email: identifier }, { phone: identifier }]
+        }).lean();
+
+        // 2. Perform SignIn
         await signIn("credentials", {
-            phone,
+            identifier, // pass identifier instead of phone
             password,
-            redirect: false, // We handle redirect on client
+            redirect: false,
         });
-        return { success: true };
+
+        // 3. Return role
+        // Check role OR userType (legacy DB field)
+        const finalRole = (user?.role === 'admin' || user?.userType === 'admin') ? 'admin' : 'user';
+
+        console.log("LOGIN DEBUG:", {
+            email: user?.email,
+            phone: user?.phone,
+            roleDB: user?.role,
+            userTypeDB: user?.userType,
+            finalRole
+        });
+
+        return { success: true, role: finalRole };
+
     } catch (error) {
         if (error instanceof AuthError) {
             switch (error.type) {
@@ -20,14 +51,7 @@ export async function authenticate(phone, password) {
                     return { error: "Something went wrong." };
             }
         }
-        // NextAuth throws error on success if redirect is true, but we set redirect: false?
-        // Actually redirect: false works but signIn might still throw for flow control?
-        // In v5, signIn throws. If no error, wait... with redirect: false it returns result? 
-        // Actually v5 documentation says signIn throws on redirect.
-        // If redirect: false, it returns nothing?
-
-        // For safety, let's treat any non-AuthError as success if we aren't redirecting? 
-        // Re-throwing helps debugging but...
         throw error;
     }
 }
+

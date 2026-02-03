@@ -2,7 +2,10 @@ import { Inter, Playfair_Display, Mulish } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import ServiceBar from "@/components/ServiceBar";
+import Link from "next/link";
+import BottomNav from "@/components/BottomNav";
 import CartDrawer from "@/components/CartDrawer";
+import Footer from "@/components/Footer";
 import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -24,9 +27,11 @@ export default function RootLayout({ children }) {
       >
         <ServiceBar />
         <Navbar />
-        <main className="min-h-screen">
+        <main className="min-h-screen pb-16 md:pb-0">
           {children}
         </main>
+        <Footer />
+        <BottomNav />
         <CartDrawer />
         <Toaster
           position="bottom-right"

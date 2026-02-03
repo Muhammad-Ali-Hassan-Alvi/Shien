@@ -10,12 +10,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        phone: { label: "Phone", type: "text" },
+        identifier: { label: "Email or Phone", type: "text" },
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
         await connectDB();
-        const user = await User.findOne({ phone: credentials.phone });
+
+        // Allow login with either email or phone
+        // The screenshot shows admins have emails like "admin@admin.com"
+        // Users might have phones. 
+        // We check if the input looks like an email or just search both.
+
+        const identifier = credentials.identifier || credentials.email || credentials.phone;
+
+        if (!identifier || !credentials.password) {
+          throw new Error("Please provide both email/phone and password");
+        }
+
+        // Search by email OR phone
+        const user = await User.findOne({
+          $or: [
+            { email: identifier },
+            { phone: identifier }
+          ]
+        }).lean();
 
         if (!user) {
           throw new Error("User not found.");

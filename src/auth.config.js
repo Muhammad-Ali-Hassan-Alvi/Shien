@@ -31,7 +31,15 @@ export const authConfig = {
     jwt({ token, user }) {
       if (user) {
         token.id = user._id || user.id;
-        token.role = user.role;
+
+        console.log("JWT CALLBACK DEBUG:", {
+          role: user.role,
+          userType: user.userType,
+          finalRole: (user.role === 'admin' || user.userType === 'admin') ? 'admin' : (user.role || 'user')
+        });
+
+        // Prioritize explicit role, fallback to userType
+        token.role = (user.role === 'admin' || user.userType === 'admin') ? 'admin' : (user.role || 'user');
       }
       return token;
     },

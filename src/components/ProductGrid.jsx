@@ -59,7 +59,7 @@ export default function ProductGrid({ initialProducts }) {
         <div className="h-[1px] w-12 bg-gray-300"></div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-y-6 gap-x-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-y-4 gap-x-2 md:gap-x-4">
         {products.map((product) => (
           <ProductCard key={product._id} product={product} />
         ))}
@@ -79,10 +79,9 @@ export default function ProductGrid({ initialProducts }) {
           <div className="flex justify-center mt-12 mb-8">
               <button 
                 onClick={loadMore}
-                className="px-12 py-3 border border-black bg-white text-black font-bold text-sm tracking-wide flex items-center hover:bg-gray-50 transition-colors"
-                style={{ fontFamily: 'system-ui' }} // Matching the font style generally requested
+                className="px-20 py-3 bg-[#1e1e1e] text-white font-bold text-lg tracking-wider hover:bg-black transition-all shadow-sm transform active:scale-95"
               >
-                  View more <ChevronDown size={16} className="ml-2" />
+                  View More
               </button>
           </div>
       )}

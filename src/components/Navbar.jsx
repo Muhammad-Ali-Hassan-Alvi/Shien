@@ -3,86 +3,90 @@
 import Link from "next/link";
 import { useUIStore } from "@/store/useUIStore";
 import { useCartStore } from "@/store/useCartStore";
-import { ShoppingBag, Search, User, Menu } from "lucide-react";
+import { ShoppingBag, Search, User, Headset, ScanLine, Globe, ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Navbar() {
   const { openCart } = useUIStore();
   const { items } = useCartStore();
   const [mounted, setMounted] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    
-    const handleScroll = () => {
-        if (window.scrollY > 10) {
-            setIsScrolled(true);
-        } else {
-            setIsScrolled(false);
-        }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Dynamic classes
-  const navClasses = isScrolled 
-    ? "bg-black text-white shadow-md border-transparent" 
-    : "bg-white/95 backdrop-blur-md border-transparent text-black shadow-sm";
-
-  const iconClasses = isScrolled 
-    ? "text-white hover:bg-white/20" 
-    : "text-gray-600 hover:text-black hover:bg-gray-100";
-
   return (
-    <nav className={`sticky top-0 z-50 bg-[#F7F5F2] border-b border-gray-100 transition-all duration-300 ${navClasses}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          
-          {/* Mobile Menu & Logo */}
-          <div className="flex items-center gap-4">
-             <button className={`md:hidden p-2 -ml-2 ${iconClasses}`}>
-                <Menu size={24} />
-             </button>
-             <Link href="/" className="text-2xl font-black tracking-tight" style={{ fontFamily: 'var(--font-mulish)' }}>
-                SHEIN<span className="text-red-600">.PK</span>
-             </Link>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-8" style={{ fontFamily: 'var(--font-mulish)' }}>
-             <Link href="/" className="text-sm font-bold hover:text-red-600 transition-colors">Women</Link>
-             <Link href="/" className="text-sm font-bold hover:text-red-600 transition-colors">Men</Link>
-             <Link href="/" className="text-sm font-bold hover:text-red-600 transition-colors">Kids</Link>
-             <Link href="/" className="text-sm font-bold hover:text-red-600 transition-colors text-red-600">Sale</Link>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <button className={`p-2 rounded-full transition-colors ${iconClasses}`}>
-               <Search size={22} />
-            </button>
-            <Link href="/profile" className={`p-2 rounded-full transition-colors hidden sm:block ${iconClasses}`}>
-               <User size={22} />
-            </Link>
+    <nav className="sticky top-0 z-50 shadow-md">
+      
+      {/* Top Bar: Black Background */}
+      <div className="bg-black text-white px-4 md:px-8 py-3">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-8">
             
-            <button 
-                onClick={openCart}
-                className={`relative p-2 rounded-full transition-colors ${iconClasses}`}
-            >
-               <ShoppingBag size={22} />
-               {mounted && items.length > 0 && (
-                 <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-                   {items.length}
-                 </span>
-               )}
-            </button>
-          </div>
+            {/* Logo */}
+            <Link href="/" className="text-3xl font-bold tracking-widest shrink-0">
+                SHEIN
+            </Link>
 
+            {/* Search Bar - Center */}
+            <div className="hidden md:flex flex-1 max-w-2xl relative group">
+                <input 
+                    type="text" 
+                    placeholder="Skirt" 
+                    className="w-full h-10 pl-4 pr-12 text-sm text-black bg-white outline-none rounded-none focus:ring-0 placeholder:text-gray-400"
+                />
+                <button className="absolute right-0 top-0 h-10 w-12 bg-black flex items-center justify-center border-2 border-white group-hover:bg-[#333] transition-colors">
+                    <Search color="white" size={20} />
+                </button>
+            </div>
+
+            {/* Right Icons */}
+            <div className="flex items-center gap-6 shrink-0">
+                <Link href="/profile" className="hover:text-gray-300">
+                    <User size={24} strokeWidth={1.5} />
+                </Link>
+                <button onClick={openCart} className="relative hover:text-gray-300">
+                    <ShoppingBag size={24} strokeWidth={1.5} />
+                    <span className="absolute -top-1 -right-2 text-xs font-bold">{items.length}</span>
+                </button>
+                <div className="relative hover:text-gray-300 cursor-pointer">
+                    <Link href="/wishlist">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5 4.5 2-1.5-1.5 2.74-2 4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                        <span className="absolute -top-1 -right-2 text-xs font-bold">0</span>
+                    </Link>
+                </div>
+                <button className="hover:text-gray-300">
+                    <Headset size={24} strokeWidth={1.5} />
+                </button>
+                <button className="hover:text-gray-300">
+                    <Globe size={24} strokeWidth={1.5} />
+                </button>
+            </div>
         </div>
       </div>
+
+      {/* Bottom Bar: Navigation Links */}
+      <div className="bg-black text-white border-t border-gray-800 hidden md:block">
+          <div className="max-w-[1600px] mx-auto px-4 md:px-8">
+              <div className="flex items-center gap-8 h-10 text-xs font-medium overflow-x-auto no-scrollbar">
+                  <div className="flex items-center cursor-pointer hover:bg-[#333] h-full px-2 -ml-2">
+                      Categories <ChevronDown size={14} className="ml-1" />
+                  </div>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Just for You</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">New In</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap text-yellow-400">Sale</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Women Clothing</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Beachwear</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Kids</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Curve</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Men Clothing</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Underwear & Sleepwear</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Shoes</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Home & Living</Link>
+                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Beauty & Health</Link>
+              </div>
+          </div>
+      </div>
+
     </nav>
   );
 }

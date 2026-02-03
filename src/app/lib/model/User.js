@@ -4,16 +4,19 @@ const UserSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Please provide a name"],
+      // required: [true, "Please provide a name"], // Relax requirement if we use userName
     },
+    userName: { type: String }, // Legacy field mapping
+
     email: {
       type: String,
-      // unique: true, // Email is optional/secondary now
+      unique: true,
+      sparse: true,
     },
     phone: {
       type: String,
-      required: [true, "Please provide a phone number"],
       unique: true,
+      sparse: true,
     },
     password: {
       type: String,
@@ -24,6 +27,10 @@ const UserSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    userType: { // Legacy field support
+      type: String,
+      enum: ["user", "admin"],
+    },
     addresses: [
       {
         fullName: String,
@@ -33,6 +40,7 @@ const UserSchema = new mongoose.Schema(
         isDefault: { type: Boolean, default: false },
       },
     ],
+    shippingAddress: [], // Legacy field support (array in provided JSON)
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
