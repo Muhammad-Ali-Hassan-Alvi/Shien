@@ -1,12 +1,6 @@
 import { Inter, Playfair_Display, Mulish } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import ServiceBar from "@/components/ServiceBar";
-import Link from "next/link";
-import BottomNav from "@/components/BottomNav";
-import CartDrawer from "@/components/CartDrawer";
-import Footer from "@/components/Footer";
-import { Toaster } from 'react-hot-toast';
+import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
@@ -25,33 +19,9 @@ export default function RootLayout({ children }) {
         style={{ backgroundColor: "#F7F5F2" }}
         suppressHydrationWarning={true}
       >
-        <ServiceBar />
-        <Navbar />
-        <main className="min-h-screen pb-16 md:pb-0">
+        <ClientLayoutWrapper>
           {children}
-        </main>
-        <Footer />
-        <BottomNav />
-        <CartDrawer />
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#000',
-              color: '#fff',
-              borderRadius: '0px',
-              border: '1px solid #333',
-              fontFamily: 'var(--font-inter)',
-              fontSize: '14px',
-            },
-            success: {
-              iconTheme: {
-                primary: '#fff',
-                secondary: '#000',
-              },
-            },
-          }}
-        />
+        </ClientLayoutWrapper>
       </body>
     </html>
   );
