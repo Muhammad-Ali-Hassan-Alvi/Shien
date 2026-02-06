@@ -7,6 +7,7 @@ import Image from "next/image";
 import { toast } from "react-hot-toast";
 import DeleteModal from "@/components/admin/DeleteModal";
 import Pagination from "@/components/admin/Pagination";
+import Loader from "@/components/admin/Loader";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState([]);
@@ -61,7 +62,7 @@ export default function ProductsPage() {
         currentPage * ITEMS_PER_PAGE
     );
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading) return <Loader />;
 
     return (
         <div className="space-y-6">

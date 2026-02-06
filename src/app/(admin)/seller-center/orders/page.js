@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import Pagination from "@/components/admin/Pagination";
+import Loader from "@/components/admin/Loader";
 
 const STATUS_OPTS = ["Pending", "Confirmed", "Dispatched", "Delivered", "Cancelled", "Returned"];
 const STATUS_COLORS = {
@@ -60,7 +61,7 @@ export default function OrdersPage() {
         currentPage * ITEMS_PER_PAGE
     );
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading) return <Loader />;
 
     return (
         <div className="space-y-6">

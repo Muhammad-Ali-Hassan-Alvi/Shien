@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import { TrendingUp, Tag, Calculator, History, Play, Pause, AlertTriangle, RefreshCcw } from "lucide-react";
 import ConfirmationModal from "@/components/admin/ConfirmationModal";
 import Pagination from "@/components/admin/Pagination";
+import Loader from "@/components/admin/Loader";
 
 export default function SalesPage() {
     const [categories, setCategories] = useState([]);
@@ -12,9 +13,12 @@ export default function SalesPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
+    // Loading States
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [actionLoading, setActionLoading] = useState(false); // For modal actions
+
     // Modal State
     const [modal, setModal] = useState({ isOpen: false });
-    const [loading, setLoading] = useState(false);
 
     // Smart Campaign State
     const [campaign, setCampaign] = useState({
@@ -25,13 +29,23 @@ export default function SalesPage() {
         label: "FLAT 50% OFF"
     });
 
-    const fetchData = () => {
-        fetch('/api/categories').then(res => res.json()).then(data => {
-            if (data.categories) setCategories(data.categories);
-        });
-        fetch('/api/admin/sales').then(res => res.json()).then(data => {
-            if (data.sales) setSalesHistory(data.sales);
-        });
+    const fetchData = async () => {
+        try {
+            const [catRes, salesRes] = await Promise.all([
+                fetch('/api/categories'),
+                fetch('/api/admin/sales')
+            ]);
+
+            const catData = await catRes.json();
+            const salesData = await salesRes.json();
+
+            if (catData.categories) setCategories(catData.categories);
+            if (salesData.sales) setSalesHistory(salesData.sales);
+        } catch (error) {
+            console.error("Error fetching data", error);
+        } finally {
+            setInitialLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -65,7 +79,7 @@ export default function SalesPage() {
     };
 
     const performSmartSale = async () => {
-        setLoading(true);
+        setActionLoading(true);
         const toastId = toast.loading("Launching...");
         try {
             const res = await fetch('/api/admin/sales', {
@@ -90,12 +104,12 @@ export default function SalesPage() {
         } catch (err) {
             toast.error(err.message, { id: toastId });
         } finally {
-            setLoading(false);
+            setActionLoading(false);
         }
     };
 
     const performReset = async () => {
-        setLoading(true);
+        setActionLoading(true);
         const toastId = toast.loading("Resetting Prices...");
         try {
             const res = await fetch('/api/admin/sales', {
@@ -118,7 +132,7 @@ export default function SalesPage() {
         } catch (err) {
             toast.error(err.message, { id: toastId });
         } finally {
-            setLoading(false);
+            setActionLoading(false);
         }
     };
 
@@ -152,6 +166,8 @@ export default function SalesPage() {
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
+
+    if (initialLoading) return <Loader />;
 
     return (
         <div className="space-y-12 max-w-6xl mx-auto pb-12">
@@ -326,7 +342,7 @@ export default function SalesPage() {
                 isOpen={modal.isOpen}
                 onClose={() => setModal({ ...modal, isOpen: false })}
                 onConfirm={modal.onConfirm}
-                isLoading={loading}
+                isLoading={actionLoading}
                 title={modal.title}
                 message={modal.message}
                 confirmText={modal.confirmText}
