@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { Star } from "lucide-react";
+import Loader from "@/components/admin/Loader";
 
 export default function ReviewsPage() {
     const [reviews, setReviews] = useState([]);
@@ -42,7 +43,7 @@ export default function ReviewsPage() {
         }
     };
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading) return <Loader />;
 
     return (
         <div className="space-y-6">
@@ -82,7 +83,7 @@ export default function ReviewsPage() {
                                 <td className="px-6 py-4 text-sm max-w-xs truncate">{r.comment}</td>
                                 <td className="px-6 py-4">
                                     <span className={`text-xs px-2 py-1 rounded-full font-bold ${r.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                                            r.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                        r.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
                                         }`}>
                                         {r.status}
                                     </span>

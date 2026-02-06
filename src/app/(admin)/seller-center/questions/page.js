@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { MessageSquare, Send } from "lucide-react";
+import Loader from "@/components/admin/Loader";
 
 export default function QuestionsPage() {
     const [questions, setQuestions] = useState([]);
@@ -47,7 +48,7 @@ export default function QuestionsPage() {
         }
     };
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading) return <Loader />;
 
     return (
         <div className="space-y-6">
