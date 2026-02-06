@@ -17,6 +17,10 @@
   --color-glass-border: var(--glass-border);
   --color-accent: var(--accent);
   
+  /* Fonts */
+  --font-sans: var(--font-poppins);
+  --font-display: var(--font-playfair);
+  
   /* Custom Animations */
   --animate-float: float 6s ease-in-out infinite;
   
@@ -58,7 +62,7 @@
 body {
   background: transparent;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), sans-serif;
   overflow-x: hidden;
 }
 

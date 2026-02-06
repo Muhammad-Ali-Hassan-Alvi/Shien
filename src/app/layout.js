@@ -1,10 +1,17 @@
-import { Inter, Playfair_Display, Mulish } from "next/font/google";
+import { Poppins, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
-const mulish = Mulish({ subsets: ["latin"], variable: "--font-mulish" });
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  variable: "--font-poppins"
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair"
+});
 
 export const metadata = {
   title: "iMART | High-End Fashion",
@@ -15,7 +22,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${playfair.variable} ${mulish.variable} font-sans antialiased text-black relative min-h-screen`}
+        className={`${poppins.variable} ${playfair.variable} font-sans antialiased text-black relative min-h-screen`}
         suppressHydrationWarning={true}
       >
         <div className="mesh-bg">

@@ -1,8 +1,33 @@
+"use client";
+
+import { useState } from "react";
 import StatsCard from "@/components/admin/StatsCard";
 import { DollarSign, ShoppingBag, Users, Activity, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
+const CHART_DATA = {
+    week: {
+        data: [40, 65, 45, 80, 55, 90, 70],
+        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        scale: 1 // Baseline multiplier
+    },
+    month: {
+        data: [250, 320, 280, 350],
+        labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
+        scale: 4 // Higher values
+    },
+    year: {
+        data: [1200, 1500, 1100, 1800, 2000, 1700, 1900, 2200, 2100, 2400, 2300, 2800],
+        labels: ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+        scale: 20 // Much higher
+    }
+};
+
 export default function SellerCenterDashboard() {
+    const [range, setRange] = useState("week");
+    const activeChart = CHART_DATA[range];
+    const maxVal = Math.max(...activeChart.data); // For normalizing bar heights
+
     return (
         <div className="space-y-8 relative min-h-screen pb-12">
 
@@ -29,7 +54,7 @@ export default function SellerCenterDashboard() {
                 </div>
             </div>
 
-            {/* KPI Grid - StatsCard handles its own glass styling */}
+            {/* KPI Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatsCard
                     title="Total Revenue"
@@ -75,32 +100,46 @@ export default function SellerCenterDashboard() {
                             <h3 className="font-playfair font-bold text-xl text-gray-900">Revenue Analytics</h3>
                             <p className="text-xs text-gray-500 font-medium mt-1">Performance over time</p>
                         </div>
-                        <select className="bg-white/50 border border-white/60 text-sm font-bold text-gray-600 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-black/5 cursor-pointer hover:bg-white transition-colors">
-                            <option>This Week</option>
-                            <option>This Month</option>
-                            <option>This Year</option>
+                        <select
+                            className="bg-white/50 border border-white/60 text-sm font-bold text-gray-600 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-black/5 cursor-pointer hover:bg-white transition-colors"
+                            value={range}
+                            onChange={(e) => setRange(e.target.value)}
+                        >
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="year">This Year</option>
                         </select>
                     </div>
 
-                    {/* CSS Bar Chart Mock */}
-                    <div className="h-72 flex items-end justify-between gap-4 px-2 pb-2">
-                        {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
-                            <div key={i} className="w-full bg-white/40 rounded-2xl relative group h-full flex items-end overflow-hidden">
-                                <div
-                                    className="w-full bg-gray-900 rounded-2xl transition-all duration-700 ease-out group-hover:bg-indigo-600 relative overflow-hidden"
-                                    style={{ height: `${h}%` }}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                    {/* Dynamic Bar Chart */}
+                    <div className="h-72 flex items-end justify-between gap-2 px-2 pb-2">
+                        {activeChart.data.map((val, i) => {
+                            const heightPct = (val / maxVal) * 100; // Normalize height (0-100%)
+                            return (
+                                <div key={i} className="w-full h-full flex items-end justify-center group relative">
+                                    <div className="w-full mx-1 bg-white/40 rounded-2xl relative overflow-hidden transition-all duration-500" style={{ height: '100%' }}>
+                                        <div
+                                            className="absolute bottom-0 w-full bg-gray-900 rounded-2xl transition-all duration-700 ease-out group-hover:bg-indigo-600"
+                                            style={{ height: `${heightPct}%` }}
+                                        >
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Tooltip */}
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-1 shadow-xl whitespace-nowrap z-10 pointer-events-none">
+                                        ${val}k
+                                    </div>
                                 </div>
-                                {/* Tooltip */}
-                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-1 shadow-xl whitespace-nowrap z-10 pointer-events-none">
-                                    ${h}k Revenue
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
+
+                    {/* Labels */}
                     <div className="flex justify-between mt-6 text-xs text-gray-400 font-bold uppercase tracking-wider px-2">
-                        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                        {activeChart.labels.map((label, i) => (
+                            <span key={i} className="flex-1 text-center">{label}</span>
+                        ))}
                     </div>
                 </div>
 
