@@ -1,7 +1,6 @@
-
 import mongoose from "mongoose";
 import * as dotenv from "dotenv";
-import User from "../src/app/lib/model/User.js";
+import Admin from "../src/app/lib/model/Admin.js"; // Direct path to new model
 import bcrypt from "bcryptjs";
 
 // Load env vars
@@ -14,7 +13,7 @@ if (!MONGO_URI) {
     process.exit(1);
 }
 
-const ADMIN_PHONE = "03001234567";
+const ADMIN_EMAIL = "admin@shein.pk";
 const ADMIN_PASS = "admin123";
 
 async function createAdmin() {
@@ -22,34 +21,32 @@ async function createAdmin() {
         console.log("🔌 Connecting to DB...");
         await mongoose.connect(MONGO_URI);
 
-        console.log(`Checking for existing admin with phone ${ADMIN_PHONE}...`);
-        const existingAdmin = await User.findOne({ phone: ADMIN_PHONE });
+        console.log(`Checking for existing admin: ${ADMIN_EMAIL}...`);
+        const existingAdmin = await Admin.findOne({ email: ADMIN_EMAIL });
 
         if (existingAdmin) {
-            console.log("⚠️ Admin already exists with this phone.");
-            // Update password to be sure? No, might be destructive.
-            // But if the user splits "Still the same like in the database", they might imply a specific one.
-            // Let's just update the role to admin just to be safe it IS an admin.
+            console.log("⚠️ Admin already exists.");
             existingAdmin.role = 'admin';
+            existingAdmin.isSuperAdmin = true;
             await existingAdmin.save();
-            console.log("✅ Ensured user is set to 'admin' role.");
+            console.log("✅ Updated existing admin role/status.");
         } else {
-            console.log("Creating new admin user...");
+            console.log("Creating new SUPER ADMIN...");
             const hashedPassword = await bcrypt.hash(ADMIN_PASS, 10);
 
-            await User.create({
+            await Admin.create({
                 name: "Super Admin",
-                phone: ADMIN_PHONE,
+                email: ADMIN_EMAIL,
                 password: hashedPassword,
                 role: "admin",
-                wishlist: []
+                isSuperAdmin: true,
             });
-            console.log("✅ Admin Created Successfully!");
+            console.log("✅ Super Admin Created Successfully!");
         }
 
         console.log("\n=================================");
         console.log("🔑 LOGIN CREDENTIALS:");
-        console.log(`📱 Phone:    ${ADMIN_PHONE}`);
+        console.log(`📧 Email:    ${ADMIN_EMAIL}`);
         console.log(`🔑 Password: ${ADMIN_PASS}`);
         console.log("=================================\n");
 

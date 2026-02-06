@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import connectDB from "@/app/lib/config/db";
 import User from "@/app/lib/model/User";
+import Admin from "@/app/lib/model/Admin";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 
@@ -12,31 +13,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         identifier: { label: "Email or Phone", type: "text" },
         password: { label: "Password", type: "password" },
+        isAdminLogin: { label: "Is Admin", type: "text" },
       },
       authorize: async (credentials) => {
         await connectDB();
 
-        // Allow login with either email or phone
-        // The screenshot shows admins have emails like "admin@admin.com"
-        // Users might have phones. 
-        // We check if the input looks like an email or just search both.
-
         const identifier = credentials.identifier || credentials.email || credentials.phone;
+        const isAdminLogin = credentials.isAdminLogin === 'true';
 
         if (!identifier || !credentials.password) {
-          throw new Error("Please provide both email/phone and password");
+          throw new Error("Please provide credentials");
         }
 
-        // Search by email OR phone
-        const user = await User.findOne({
-          $or: [
-            { email: identifier },
-            { phone: identifier }
-          ]
-        }).lean();
+        let user = null;
+
+        if (isAdminLogin) {
+          // Check Admin Collection
+          user = await Admin.findOne({ email: identifier }).lean();
+        } else {
+          // Check User Collection
+          user = await User.findOne({
+            $or: [
+              { email: identifier },
+              { phone: identifier }
+            ]
+          }).lean();
+        }
 
         if (!user) {
-          throw new Error("User not found.");
+          throw new Error(isAdminLogin ? "Admin not found." : "User not found.");
         }
 
         const isPasswordCorrect = await bcrypt.compare(
@@ -48,7 +53,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error("Invalid credentials.");
         }
 
-        return user;
+        // Return user object (NextAuth will put this in token)
+        return {
+          ...user,
+          id: user._id.toString(),
+          // Ensure role is set correctly
+          role: isAdminLogin ? 'admin' : (user.role || 'user'),
+          collection: isAdminLogin ? 'admin' : 'user'
+        };
       },
     }),
   ],

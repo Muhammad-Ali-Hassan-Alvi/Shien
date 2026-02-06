@@ -1,53 +1,37 @@
+import connectDB from "@/app/lib/config/db";
+import Order from "@/app/lib/model/Order";
 import { NextResponse } from "next/server";
-import { OrderService } from "@/services/OrderService";
-import { OrderInputSchema } from "@/lib/validation";
-import { auth } from "@/auth";
 
-export async function POST(req) {
+export async function GET(req) {
     try {
-        const session = await auth();
-        // Allow Guest Checkout? Yes, user ID can be null.
-        const userId = session?.user?.id || null; // Or handle Guest logic
+        await connectDB();
+        const orders = await Order.find({})
+            .populate("user", "name email")
+            .sort({ createdAt: -1 });
 
-        const body = await req.json();
-
-        // 1. Zod Validation
-        const validation = OrderInputSchema.safeParse(body);
-
-        if (!validation.success) {
-            // Flatten errors for UI
-            const errors = validation.error.flatten().fieldErrors;
-            return NextResponse.json({
-                success: false,
-                message: "Validation Failed",
-                errors
-            }, { status: 400 });
-        }
-
-        // 2. Service Layer Execution (Transaction & Stock)
-        const order = await OrderService.createOrder(userId, validation.data);
-
-        // 3. Success Response
-        return NextResponse.json({
-            success: true,
-            orderId: order._id,
-            message: "Order placed successfully!"
-        }, { status: 201 });
-
+        return NextResponse.json({ orders });
     } catch (error) {
-        console.error("Order Creation Error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
 
-        // Detailed error handling
-        if (error.message.includes("Insufficient stock") || error.message.includes("found")) {
-            return NextResponse.json({
-                success: false,
-                message: error.message
-            }, { status: 409 }); // Conflict
+export async function PUT(req) {
+    try {
+        await connectDB();
+        const { orderId, status } = await req.json();
+
+        if (!orderId || !status) {
+            return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
-        return NextResponse.json({
-            success: false,
-            message: "Internal Server Error"
-        }, { status: 500 });
+        const updatedOrder = await Order.findByIdAndUpdate(
+            orderId,
+            { status },
+            { new: true }
+        );
+
+        return NextResponse.json({ success: true, order: updatedOrder });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

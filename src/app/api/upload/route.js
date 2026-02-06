@@ -2,16 +2,26 @@ import { v2 as cloudinary } from 'cloudinary';
 import { NextResponse } from 'next/server';
 
 // Configuration
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+const cloudConfig = {
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY || process.env.API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET || process.env.API_SECRET,
+};
+
+if (!cloudConfig.cloud_name || !cloudConfig.api_key || !cloudConfig.api_secret) {
+    console.error("Cloudinary config missing. Please check .env.local");
+}
+
+cloudinary.config(cloudConfig);
 
 export async function POST(req) {
     try {
         const formData = await req.formData();
         const file = formData.get('file');
+
+        if (!cloudConfig.cloud_name || !cloudConfig.api_key || !cloudConfig.api_secret) {
+            return NextResponse.json({ error: "Server Configuration Error: Missing Cloudinary Credentials" }, { status: 500 });
+        }
 
         if (!file) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });

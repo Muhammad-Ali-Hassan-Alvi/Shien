@@ -1,8 +1,10 @@
 "use client";
 
 import { useCartStore } from "@/store/useCartStore";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 const CITIES = [
   "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad", 
@@ -11,7 +13,11 @@ const CITIES = [
 ];
 
 export default function CheckoutForm({ onSuccess }) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const { items, getCartTotal } = useCartStore();
+  
+  const [paymentMethod, setPaymentMethod] = useState('COD');
   const [formData, setFormData] = useState({
       fullName: "",
       phone: "",
@@ -20,6 +26,35 @@ export default function CheckoutForm({ onSuccess }) {
       nearestLandmark: ""
   });
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill data if available
+  useEffect(() => {
+    if (session?.user) {
+        setFormData(prev => ({
+            ...prev,
+            fullName: session.user.name || "",
+            phone: session.user.phone || "", // Assuming phone might be in session
+            // email: session.user.email // If needed
+        }));
+    }
+  }, [session]);
+
+  if (status === "loading") return <div className="p-8 text-center">Loading checkout...</div>;
+
+  if (status === "unauthenticated") {
+      return (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center space-y-4">
+              <h3 className="text-xl font-bold text-gray-900">Sign in to Checkout</h3>
+              <p className="text-gray-500">You must be logged in to complete your purchase.</p>
+              <button 
+                onClick={() => signIn()} // Params can be added to redirect back
+                className="bg-black text-white px-8 py-3 rounded-lg font-bold hover:bg-gray-800 transition"
+              >
+                  Sign In Now
+              </button>
+          </div>
+      );
+  }
 
   const handleChange = (e) => {
       setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -136,10 +171,34 @@ export default function CheckoutForm({ onSuccess }) {
 
        <div className="pt-4 border-t border-gray-100">
            <h2 className="text-xl font-bold mb-4">Payment</h2>
-           <label className="flex items-center gap-3 p-4 border border-black bg-gray-50 rounded-md cursor-pointer">
-               <input type="radio" checked readOnly className="w-5 h-5 accent-black" />
-               <span className="font-bold">Cash on Delivery (COD)</span>
-           </label>
+           <div className="space-y-3">
+               <label className="flex items-center gap-3 p-4 border border-black bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 transition">
+                   <input 
+                    type="radio" 
+                    name="payment" 
+                    value="COD"
+                    checked={paymentMethod === 'COD'} 
+                    onChange={() => setPaymentMethod('COD')}
+                    className="w-5 h-5 accent-black" 
+                   />
+                   <span className="font-bold">Cash on Delivery (COD)</span>
+               </label>
+
+               <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 transition">
+                   <input 
+                    type="radio" 
+                    name="payment" 
+                    value="GOPAYFAST"
+                    checked={paymentMethod === 'GOPAYFAST'}
+                    onChange={() => setPaymentMethod('GOPAYFAST')}
+                    className="w-5 h-5 accent-orange-500" 
+                   />
+                   <div className="flex flex-col">
+                        <span className="font-bold text-gray-800">GoPayFast</span>
+                        <span className="text-xs text-gray-500">Pay via Bank Account / Wallet (Pakistan)</span>
+                   </div>
+               </label>
+           </div>
        </div>
 
        <button 

@@ -32,20 +32,20 @@ export default function SellerCenterDashboard() {
                     color="bg-yellow-100"
                 />
                 <StatsCard
-                    title="Total Orders"
-                    value="2,345"
+                    title="Pending Orders"
+                    value="15"
                     trend="up"
-                    trendValue="+15.2%"
+                    trendValue="+2 this hour"
                     icon={ShoppingBag}
                     color="bg-blue-100"
                 />
                 <StatsCard
-                    title="Active Customers"
-                    value="12,345"
+                    title="Delivered Orders"
+                    value="1,245"
                     trend="up"
-                    trendValue="+5.4%"
+                    trendValue="+18 today"
                     icon={Users}
-                    color="bg-purple-100"
+                    color="bg-green-100"
                 />
                 <StatsCard
                     title="Conversion Rate"

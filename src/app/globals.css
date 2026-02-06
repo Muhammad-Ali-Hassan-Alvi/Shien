@@ -3,21 +3,66 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --accent: #4f46e5; /* Indigo 600 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  
+  /* Custom Colors */
+  --color-glass: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-accent: var(--accent);
+  
+  /* Custom Animations */
+  --animate-float: float 6s ease-in-out infinite;
+  
+  @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+  }
 }
 
+/* Mesh Gradient Background */
+.mesh-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -50;
+    overflow: hidden;
+    background: #f8fafc;
+}
 
+.mesh-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.8;
+    animation: blob-bounce 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.blob-1 { top: -10%; left: -10%; width: 70vw; height: 70vw; background: #e0e7ff; } /* indigo-100 */
+.blob-2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: #fce7f3; animation-delay: -5s; } /* pink-100 */
+.blob-3 { top: 30%; left: 30%; width: 50vw; height: 50vw; background: #ede9fe; animation-delay: -10s; } /* violet-100 */
+
+@keyframes blob-bounce {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(50px, -50px) scale(1.1); }
+}
 
 body {
-  background: var(--background);
+  background: transparent;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  background-color: #F7F5F2;
+  overflow-x: hidden;
+}
+
+::selection {
+    background: var(--accent);
+    color: white;
 }

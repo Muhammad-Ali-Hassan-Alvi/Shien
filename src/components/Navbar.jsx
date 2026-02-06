@@ -3,90 +3,131 @@
 import Link from "next/link";
 import { useUIStore } from "@/store/useUIStore";
 import { useCartStore } from "@/store/useCartStore";
-import { ShoppingBag, Search, User, Headset, ScanLine, Globe, ChevronDown } from "lucide-react";
+import { ShoppingBag, Search, User, Heart, ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
+
+const NAV_MENU = [
+    { label: "New In", href: "/" },
+    { 
+      label: "Clothing", 
+      href: "/",
+      mega: true,
+      subCategories: [
+          {
+              title: "Women's Fashion",
+              items: ["Dresses", "Tops", "Blouses", "Jeans", "Skirts", "Pants", "Coats", "Sweaters"]
+          },
+          {
+              title: "Men's Fashion",
+              items: ["T-Shirts", "Shirts", "Pants", "Jeans", "Jackets", "Suits", "Activewear"]
+          },
+           {
+              title: "Kids & Baby",
+              items: ["Girls Clothing", "Boys Clothing", "Baby Wear", "Shoes", "Accessories"]
+          }
+      ]
+    },
+    { 
+       label: "Shoes", 
+       href: "/",
+       mega: true,
+        subCategories: [
+          {
+              title: "Women's Shoes",
+              items: ["Sneakers", "Heels", "Boots", "Sandals", "Flats"]
+          },
+          {
+               title: "Men's Shoes",
+               items: ["Sneakers", "Formal", "Boots", "Loafers", "Running"]
+          }
+        ]
+    },
+    { label: "Sale", href: "/", highlight: true },
+];
 
 export default function Navbar() {
   const { openCart } = useUIStore();
   const { items } = useCartStore();
-  const [mounted, setMounted] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <nav className="sticky top-0 z-50 shadow-md">
-      
-      {/* Top Bar: Black Background */}
-      <div className="bg-black text-white px-4 md:px-8 py-3">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-8">
-            
-            {/* Logo */}
-            <Link href="/" className="text-3xl font-bold tracking-widest shrink-0">
-                SHEIN
-            </Link>
+    <nav className={`sticky top-0 z-50 transition-all duration-500 ${scrolled ? 'py-2' : 'py-4'}`}>
+        <div className={`mx-auto max-w-7xl px-4 md:px-8 transition-all duration-500 rounded-full border border-white/40 shadow-sm hover:shadow-lg ${scrolled ? 'bg-white/70 backdrop-blur-xl w-[95%]' : 'bg-white/30 backdrop-blur-lg w-[98%]' } flex items-center justify-between`}>
+           {/* Logo */}
+           <Link href="/" className="px-4 py-2 text-2xl font-playfair font-black tracking-tighter bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
+             SHEIN
+           </Link>
 
-            {/* Search Bar - Center */}
-            <div className="hidden md:flex flex-1 max-w-2xl relative group">
-                <input 
-                    type="text" 
-                    placeholder="Skirt" 
-                    className="w-full h-10 pl-4 pr-12 text-sm text-black bg-white outline-none rounded-none focus:ring-0 placeholder:text-gray-400"
-                />
-                <button className="absolute right-0 top-0 h-10 w-12 bg-black flex items-center justify-center border-2 border-white group-hover:bg-[#333] transition-colors">
-                    <Search color="white" size={20} />
+           {/* Nav Links (Mega Menu) */}
+           <div className="hidden md:flex items-center gap-8 font-medium text-sm text-gray-700">
+               {NAV_MENU.map((item) => (
+                   <div key={item.label} className="relative group">
+                       <Link href={item.href} className={`relative py-3 flex items-center gap-1 transition-colors ${item.highlight ? 'text-red-500 font-bold' : 'hover:text-indigo-600'}`}>
+                           {item.label}
+                           {item.mega && <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300" />}
+                           
+                           {!item.highlight && (
+                               <span className="absolute inset-x-0 bottom-1 h-0.5 bg-indigo-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-center ease-out duration-300"/>
+                           )}
+                       </Link>
+
+                       {/* Mega Menu Dropdown */}
+                       {item.mega && (
+                           <div className="absolute top-full left-1/2 -translate-x-1/2 pt-6 w-[600px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform group-hover:translate-y-0 translate-y-2 z-50">
+                               <div className="bg-white/90 backdrop-blur-xl border border-white/40 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] rounded-2xl p-6 grid grid-cols-3 gap-8 relative overflow-hidden">
+                                   {/* Blob for aesthetic */}
+                                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl opacity-50 pointer-events-none -z-10"></div>
+
+                                   {item.subCategories.map((sub, idx) => (
+                                       <div key={idx} className="space-y-4">
+                                           <h4 className="font-playfair font-bold text-lg text-gray-900 border-b border-gray-100 pb-2">
+                                               {sub.title}
+                                           </h4>
+                                           <ul className="space-y-2">
+                                               {sub.items.map((subItem) => (
+                                                   <li key={subItem}>
+                                                       <Link href="/" className="text-gray-500 hover:text-indigo-600 block text-sm transition-colors hover:translate-x-1 duration-200">
+                                                           {subItem}
+                                                       </Link>
+                                                   </li>
+                                               ))}
+                                           </ul>
+                                       </div>
+                                   ))}
+                               </div>
+                           </div>
+                       )}
+                   </div>
+               ))}
+           </div>
+
+           {/* Icons */}
+           <div className="flex items-center gap-2 pr-2">
+                <button className="p-2.5 hover:bg-white/50 rounded-full transition-all hover:scale-110 active:scale-95 group">
+                    <Search className="w-5 h-5 text-gray-700 group-hover:text-indigo-600" strokeWidth={2} />
                 </button>
-            </div>
-
-            {/* Right Icons */}
-            <div className="flex items-center gap-6 shrink-0">
-                <Link href="/profile" className="hover:text-gray-300">
-                    <User size={24} strokeWidth={1.5} />
+                <Link href="/wishlist" className="p-2.5 hover:bg-white/50 rounded-full transition-all hover:scale-110 active:scale-95 group">
+                    <Heart className="w-5 h-5 text-gray-700 group-hover:text-pink-600" strokeWidth={2} />
                 </Link>
-                <button onClick={openCart} className="relative hover:text-gray-300">
-                    <ShoppingBag size={24} strokeWidth={1.5} />
-                    <span className="absolute -top-1 -right-2 text-xs font-bold">{items.length}</span>
+                <button onClick={openCart} className="p-2.5 hover:bg-white/50 rounded-full transition-all hover:scale-110 active:scale-95 group relative">
+                    <ShoppingBag className="w-5 h-5 text-gray-700 group-hover:text-indigo-600" strokeWidth={2} />
+                    {items.length > 0 && (
+                        <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center rounded-full shadow-lg border border-white animate-pulse">
+                            {items.length}
+                        </span>
+                    )}
                 </button>
-                <div className="relative hover:text-gray-300 cursor-pointer">
-                    <Link href="/wishlist">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5 4.5 2-1.5-1.5 2.74-2 4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                        <span className="absolute -top-1 -right-2 text-xs font-bold">0</span>
-                    </Link>
-                </div>
-                <button className="hover:text-gray-300">
-                    <Headset size={24} strokeWidth={1.5} />
-                </button>
-                <button className="hover:text-gray-300">
-                    <Globe size={24} strokeWidth={1.5} />
-                </button>
-            </div>
+                 <Link href="/profile" className="p-2.5 hover:bg-white/50 rounded-full transition-all hover:scale-110 active:scale-95 group">
+                    <User className="w-5 h-5 text-gray-700 group-hover:text-indigo-600" strokeWidth={2} />
+                </Link>
+           </div>
         </div>
-      </div>
-
-      {/* Bottom Bar: Navigation Links */}
-      <div className="bg-black text-white border-t border-gray-800 hidden md:block">
-          <div className="max-w-[1600px] mx-auto px-4 md:px-8">
-              <div className="flex items-center gap-8 h-10 text-xs font-medium overflow-x-auto no-scrollbar">
-                  <div className="flex items-center cursor-pointer hover:bg-[#333] h-full px-2 -ml-2">
-                      Categories <ChevronDown size={14} className="ml-1" />
-                  </div>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Just for You</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">New In</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap text-yellow-400">Sale</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Women Clothing</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Beachwear</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Kids</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Curve</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Men Clothing</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Underwear & Sleepwear</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Shoes</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Home & Living</Link>
-                  <Link href="/" className="hover:text-gray-300 whitespace-nowrap">Beauty & Health</Link>
-              </div>
-          </div>
-      </div>
-
     </nav>
   );
 }

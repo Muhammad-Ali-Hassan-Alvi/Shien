@@ -1,71 +1,107 @@
-import connectDB from "@/app/lib/config/db";
-import Order from "@/app/lib/model/Order";
-import Link from "next/link";
-import { Phone, CheckCircle, Truck, XCircle, Clock } from "lucide-react";
-import OrderStatusSelect from "@/components/admin/OrderStatusSelect"; // Client Component we'll make inline/separately
+"use client";
 
-export const dynamic = 'force-dynamic';
+import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
 
-async function getOrders() {
-    await connectDB();
-    const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
-    return orders;
-}
+const STATUS_OPTS = ["Pending", "Confirmed", "Dispatched", "Delivered", "Cancelled", "Returned"];
+const STATUS_COLORS = {
+    Pending: "bg-yellow-100 text-yellow-800",
+    Confirmed: "bg-blue-100 text-blue-800",
+    Dispatched: "bg-purple-100 text-purple-800",
+    Delivered: "bg-green-100 text-green-800",
+    Cancelled: "bg-red-100 text-red-800",
+    Returned: "bg-gray-100 text-gray-800",
+};
 
-export default async function AdminOrdersPage() {
-    const orders = await getOrders();
+export default function OrdersPage() {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchOrders = async () => {
+        try {
+            const res = await fetch('/api/orders');
+            const json = await res.json();
+            if (json.orders) setOrders(json.orders);
+        } catch (err) {
+            toast.error("Failed to load orders");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const handleStatusChange = async (orderId, newStatus) => {
+        const promise = fetch('/api/orders', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, status: newStatus })
+        });
+
+        toast.promise(promise, {
+            loading: 'Updating...',
+            success: 'Status Updated!',
+            error: 'Failed to update'
+        });
+
+        const res = await promise;
+        if (res.ok) {
+            setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: newStatus } : o));
+        }
+    };
+
+    if (loading) return <div className="p-8">Loading...</div>;
 
     return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold mb-8">Order Management ({orders.length})</h1>
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+                <p className="text-gray-500 text-sm">Track and manage customer orders ({orders.length})</p>
+            </div>
 
-            <div className="overflow-x-auto bg-white rounded-lg shadow border border-gray-200">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200 text-sm uppercase text-gray-500">
-                            <th className="p-4">Order ID</th>
-                            <th className="p-4">Customer</th>
-                            <th className="p-4">City</th>
-                            <th className="p-4">Items</th>
-                            <th className="p-4">Total</th>
-                            <th className="p-4">Status</th>
-                            <th className="p-4">Action</th>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase">
+                        <tr>
+                            <th className="px-6 py-4">Order ID</th>
+                            <th className="px-6 py-4">Customer</th>
+                            <th className="px-6 py-4">Items</th>
+                            <th className="px-6 py-4">Total</th>
+                            <th className="px-6 py-4">Date</th>
+                            <th className="px-6 py-4">Status</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {orders.map((order) => (
-                            <tr key={order._id.toString()} className="hover:bg-gray-50">
-                                <td className="p-4 font-mono text-xs">
-                                    {order._id.toString().slice(-6).toUpperCase()}
+                    <tbody className="divide-y divide-gray-50">
+                        {orders.map(order => (
+                            <tr key={order._id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 font-mono text-xs text-gray-500">#{order._id.slice(-6)}</td>
+                                <td className="px-6 py-4">
+                                    <div className="text-sm font-bold">{order.shippingInfo?.fullName}</div>
+                                    <div className="text-xs text-gray-400">{order.user?.email}</div>
                                 </td>
-                                <td className="p-4">
-                                    <div className="font-bold">{order.shippingInfo.fullName}</div>
-                                    <a
-                                        href={`tel:${order.shippingInfo.phone}`}
-                                        className="text-green-600 flex items-center gap-1 text-sm hover:underline mt-1"
+                                <td className="px-6 py-4 text-sm max-w-xs truncate">
+                                    {order.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}
+                                </td>
+                                <td className="px-6 py-4 font-bold text-gray-900">Rs. {order.totalAmount}</td>
+                                <td className="px-6 py-4 text-xs text-gray-500">
+                                    {new Date(order.createdAt).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4">
+                                    <select
+                                        value={order.status}
+                                        onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                        className={`px-3 py-1 rounded-full text-xs font-bold border-none outline-none cursor-pointer ${STATUS_COLORS[order.status] || 'bg-gray-100'}`}
                                     >
-                                        <Phone size={14} />
-                                        {order.shippingInfo.phone}
-                                    </a>
-                                </td>
-                                <td className="p-4">{order.shippingInfo.city}</td>
-                                <td className="p-4 text-sm text-gray-500">
-                                    {order.items.length} items
-                                </td>
-                                <td className="p-4 font-bold">Rs. {order.totalAmount}</td>
-                                <td className="p-4">
-                                    <OrderStatusSelect
-                                        orderId={order._id.toString()}
-                                        initialStatus={order.status}
-                                    />
-                                </td>
-                                <td className="p-4">
-                                    <button className="text-blue-600 hover:underline text-sm">View Details</button>
+                                        {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                    </select>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+                {orders.length === 0 && <div className="p-8 text-center text-gray-400">No orders found.</div>}
             </div>
         </div>
     );

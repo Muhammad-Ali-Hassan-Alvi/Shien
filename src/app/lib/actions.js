@@ -13,45 +13,136 @@ import { AuthError } from "next-auth";
 import User from "./model/User";
 import connectDB from "./config/db";
 
-export async function authenticate(identifier, password) {
+export async function authenticate(prevState, formData) {
     try {
-        // 1. Check role manually first (optional, but ensures we know where to go)
-        await connectDB();
-        const user = await User.findOne({
-            $or: [{ email: identifier }, { phone: identifier }]
-        }).lean();
+        const identifier = formData.get('email') || formData.get('identifier');
+        const password = formData.get('password');
+        const isAdminLogin = formData.get('isAdminLogin');
 
-        // 2. Perform SignIn
         await signIn("credentials", {
-            identifier, // pass identifier instead of phone
+            identifier,
             password,
+            isAdminLogin,
             redirect: false,
         });
 
-        // 3. Return role
-        // Check role OR userType (legacy DB field)
-        const finalRole = (user?.role === 'admin' || user?.userType === 'admin') ? 'admin' : 'user';
+        // If sign in is successful and redirect: false, we need to manually redirect or return success
+        // But for Admin Login, we want to redirect to /seller-center
+        // For User Login, we might want /profile or /
 
-        console.log("LOGIN DEBUG:", {
-            email: user?.email,
-            phone: user?.phone,
-            roleDB: user?.role,
-            userTypeDB: user?.userType,
-            finalRole
-        });
+        // Actually, let's use redirect: true but handled by the component? 
+        // No, Server Actions can redirect.
 
-        return { success: true, role: finalRole };
+        /* 
+           NextAuth v5 Note: signIn throws an error for redirects. 
+           If we use redirect: false, it returns undefined or throws error.
+        */
+
+        // Let's re-call signIn with redirect: true for simplicity, or handle manually.
+        // But we already did redirect: false above.
+        // It's cleaner to let the Client Side handle redirection based on success, 
+        // OR just throw redirect here.
 
     } catch (error) {
         if (error instanceof AuthError) {
             switch (error.type) {
                 case "CredentialsSignin":
-                    return { error: "Invalid credentials." };
+                    return "Invalid credentials.";
                 default:
-                    return { error: "Something went wrong." };
+                    return "Something went wrong.";
             }
         }
         throw error;
     }
+
+    // Manual Redirect on Success
+    // We can't use `redirect` inside try/catch easily with AuthError check unless we catch it separately.
+    // Ideally we let signIn handle it, but we used redirect: false above.
+    // Let's change strategy: just return success and let client redirect?
+    // OR: use redirect() from next/navigation
+
+    const isAdmin = formData.get('isAdminLogin') === 'true';
+    if (isAdmin) {
+        // We need to import redirect
+        const { redirect } = await import("next/navigation");
+        redirect("/seller-center");
+    } else {
+        const { redirect } = await import("next/navigation");
+        redirect("/profile");
+    }
 }
 
+
+// -- Profile & Settings Actions --
+
+import { auth } from "@/auth";
+import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
+
+export async function updateProfile(formData) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { error: "Not authenticated" };
+
+        // Ensure ID is string
+        const userId = session.user.id.toString();
+        if (userId === "[object Object]") {
+            return { error: "Session corrupted. Please Logout and Login again." };
+        }
+
+        const name = formData.get("name");
+        const email = formData.get("email");
+
+        await connectDB();
+
+        // Check if email is already taken by another user
+        if (email) {
+            const existing = await User.findOne({ email, _id: { $ne: userId } });
+            if (existing) return { error: "Email already in use" };
+        }
+
+        await User.findByIdAndUpdate(userId, {
+            name,
+            email
+        });
+
+        revalidatePath("/seller-center/settings");
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        return { error: "Failed to update profile" };
+    }
+}
+
+export async function changePassword(currentPassword, newPassword) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) return { error: "Not authenticated" };
+
+        const userId = session.user.id.toString();
+        if (userId === "[object Object]") {
+            return { error: "Session corrupted. Please Logout and Login again." };
+        }
+
+        await connectDB();
+        const user = await User.findById(userId);
+
+        if (!user || !user.password) return { error: "User not found" };
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) return { error: "Incorrect current password" };
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update
+        user.password = hashedPassword;
+        await user.save();
+
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        return { error: "Failed to change password" };
+    }
+}
