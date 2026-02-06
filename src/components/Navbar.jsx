@@ -60,8 +60,8 @@ export default function Navbar() {
     <nav className={`sticky top-0 z-50 transition-all duration-500 ${scrolled ? 'py-2' : 'py-4'}`}>
         <div className={`mx-auto max-w-7xl px-4 md:px-8 transition-all duration-500 rounded-full border border-white/40 shadow-sm hover:shadow-lg ${scrolled ? 'bg-white/70 backdrop-blur-xl w-[95%]' : 'bg-white/30 backdrop-blur-lg w-[98%]' } flex items-center justify-between`}>
            {/* Logo */}
-           <Link href="/" className="px-4 py-2 text-2xl font-playfair font-black tracking-tighter bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
-             SHEIN
+     <Link href="/" className="px-4 py-2 text-2xl font-playfair font-black tracking-tighter bg-gradient-to-r from-gray-900 via-indigo-800 to-gray-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
+             iMART
            </Link>
 
            {/* Nav Links (Mega Menu) */}

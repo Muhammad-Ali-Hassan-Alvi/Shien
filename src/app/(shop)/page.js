@@ -9,59 +9,54 @@ import Link from "next/link";
 // Server Component (Data Fetching)
 async function getInitialProducts(searchParams) {
     await connectDB();
-    const { category, sort } = await searchParams; // Await searchParams in Next.js 15+
+    const resolvedParams = await searchParams;
+    const { category, sort } = resolvedParams || {};
 
     const query = {};
-    if (category) query.category = new RegExp(category, 'i'); // Case insensitive
+    if (category) query.category = new RegExp(category, 'i');
 
     let sortOption = { createdAt: -1 };
-    if (sort === 'bestsellers') sortOption = { "pricing.salePrice": 1 }; // Placeholder for "Hot"
+    if (sort === 'bestsellers') sortOption = { "pricing.salePrice": 1 };
     if (sort === 'price_asc') sortOption = { "pricing.salePrice": 1 };
     if (sort === 'price_desc') sortOption = { "pricing.salePrice": -1 };
 
-    // Fetch first 10
-    const products = await Product.find(query).sort(sortOption).limit(10).lean();
+    // 1. Main Grid Products (10)
+    const mainProducts = await Product.find(query).sort(sortOption).limit(10).lean();
 
-    // Deeply serialize using JSON parse/stringify to handle all nested _id and Date objects
-    return JSON.parse(JSON.stringify(products));
+    // 2. Hot Drops (Newest 3)
+    const hotDrops = await Product.find({}).sort({ createdAt: -1 }).limit(3).lean();
+
+    // 3. Flash Sale (Random or Highly Discounted - for now picking 3 random or filtered)
+    // Using simple find for speed, ideally aggregate for discount size
+    const flashSale = await Product.find({ "pricing.salePrice": { $lt: 2000 } }).limit(3).lean();
+
+    const serialize = (data) => JSON.parse(JSON.stringify(data));
+
+    return {
+        mainProducts: serialize(mainProducts),
+        hotDrops: serialize(hotDrops),
+        flashSale: serialize(flashSale)
+    };
 }
 
 export const metadata = {
-    title: "Shein.PK | Women's Fashion",
+    title: "iMART | High-End Fashion",
 };
 
 export default async function HomePage({ searchParams }) {
-    const initialProducts = await getInitialProducts(searchParams);
-    // ... rest of component
+    const { mainProducts, hotDrops, flashSale } = await getInitialProducts(searchParams);
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Categories Marquee (Polish) */}
-            {/* <div className="bg-red-600 text-white py-1 overflow-hidden whitespace-nowrap text-xs">
-                <div className="inline-block animate-marquee">
-                    <span className="mx-4 font-bold uppercase">Free Shipping on orders rs. 5000+</span>
-                    <span className="mx-4 font-bold uppercase">•</span>
-                    <span className="mx-4 font-bold uppercase">Cash on Delivery Available</span>
-                </div>
-            </div> */}
-
             <Hero />
-
-            {/* Categories Marquee (Optional Polish) */}
-            {/* <div className="bg-red-600 text-white py-1 overflow-hidden whitespace-nowrap text-xs">
-                <div className="inline-block animate-marquee">
-                    <span className="mx-4 font-bold uppercase">Free Shipping on orders rs. 5000+</span>
-                    <span className="mx-4 font-bold uppercase">•</span>
-                    <span className="mx-4 font-bold uppercase">Cash on Delivery Available</span>
-                </div>
-            </div> */}
-
             <CategoryIcons />
-            <SuperDeals />
+
+            {/* Pass Real Data to SuperDeals */}
+            <SuperDeals hotDrops={hotDrops} flashSale={flashSale} />
 
             {/* Main Shop Area */}
             <div id="shop" className="max-w-7xl mx-auto px-4 md:px-12 py-12">
-                <ProductGrid initialProducts={initialProducts} />
+                <ProductGrid initialProducts={mainProducts} />
             </div>
         </div>
     );

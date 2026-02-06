@@ -21,7 +21,7 @@ export default function ProductView({ product }) {
 
   // Mock Data
   const reviewCount = "1.2k";
-  const storeName = "SHEIN PREMIUM"; 
+  const storeName = "iMART PREMIUM"; 
   const sku = product.sku || "SZ-25061734";
 
   const handleAddToCart = () => {

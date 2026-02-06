@@ -7,7 +7,7 @@ const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfa
 const mulish = Mulish({ subsets: ["latin"], variable: "--font-mulish" });
 
 export const metadata = {
-  title: "Shein.PK | High-End Fashion",
+  title: "iMART | High-End Fashion",
   description: "Premium Fashion for Pakistan",
 };
 

@@ -79,9 +79,9 @@ export default function ProductGrid({ initialProducts }) {
           <div className="flex justify-center mt-12 mb-8">
               <button 
                 onClick={loadMore}
-                className="px-20 py-3 bg-[#1e1e1e] text-white font-bold text-lg tracking-wider hover:bg-black transition-all shadow-sm transform active:scale-95"
+                className="px-12 py-3 bg-white/80 backdrop-blur-md border border-gray-200 text-gray-900 font-bold text-sm uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 rounded-full group flex items-center gap-2"
               >
-                  View More
+                  View More <ChevronDown size={14} className="group-hover:translate-y-1 transition-transform" />
               </button>
           </div>
       )}

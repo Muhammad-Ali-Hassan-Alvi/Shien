@@ -5,7 +5,7 @@ import { Bell, Search, User, Menu, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 
-export default function AdminHeader() {
+export default function AdminHeader({ onMenuClick }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications] = useState([
       { id: 1, type: 'order', message: "New Order #1024 placed by Sarah J.", time: "2 min ago", read: false },
@@ -15,21 +15,30 @@ export default function AdminHeader() {
   ]);
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-40">
-      {/* Search */}
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
+      
+      {/* Mobile Menu Toggle */}
+      <button 
+          onClick={onMenuClick}
+          className="lg:hidden mr-4 text-gray-500 hover:text-black focus:outline-none"
+      >
+          <Menu size={24} />
+      </button>
+
+      {/* Search - Visible on larger screens, Icon only on mobile? Or flexible */}
       <div className="flex items-center gap-4 flex-1 max-w-lg">
-        <div className="relative w-full">
+        <div className="relative w-full max-w-[200px] md:max-w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Search orders, products, customers..." 
+            placeholder="Search..." 
             className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none outline-none rounded-lg text-sm focus:ring-1 focus:ring-black/5"
           />
         </div>
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4 md:gap-6">
         <div className="relative">
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
@@ -69,7 +78,7 @@ export default function AdminHeader() {
         </div>
         
         <div className="relative group">
-            <button className="flex items-center gap-3 pl-6 border-l border-gray-100 outline-none">
+            <button className="flex items-center gap-3 pl-4 md:pl-6 border-l border-gray-100 outline-none">
               <div className="text-right hidden md:block">
                 <p className="text-sm font-bold text-gray-900 leading-none">Admin User</p>
                 <p className="text-xs text-gray-500 mt-1">Super Admin</p>
@@ -79,7 +88,7 @@ export default function AdminHeader() {
               </div>
             </button>
             
-            {/* Dropdown Menu - Show on hover/focus for simplicity or use state if preferred */}
+            {/* Dropdown Menu */}
             <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 transform origin-top-right z-50">
                 <div className="px-4 py-2 border-b border-gray-100">
                     <Link href="/seller-center/settings" className="text-sm font-bold block w-full hover:text-blue-600">

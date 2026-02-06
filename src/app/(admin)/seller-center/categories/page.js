@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { Plus, X, Trash2, Tag } from "lucide-react";
+import { Trash2, Tag } from "lucide-react";
+import DeleteModal from "@/components/admin/DeleteModal";
 
 export default function CategoriesPage() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newCat, setNewCat] = useState("");
     const [adding, setAdding] = useState(false);
+
+    // Delete State
+    const [deleteState, setDeleteState] = useState({ isOpen: false, id: null, isDeleting: false });
 
     const fetchCategories = async () => {
         try {
@@ -54,16 +58,26 @@ export default function CategoriesPage() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm("Delete this category?")) return;
+    const openDelete = (id) => {
+        setDeleteState({ isOpen: true, id, isDeleting: false });
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteState.id) return;
+        setDeleteState(prev => ({ ...prev, isDeleting: true }));
+
         try {
-            const res = await fetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/categories?id=${deleteState.id}`, { method: 'DELETE' });
             if (res.ok) {
-                setCategories(prev => prev.filter(c => c._id !== id));
+                setCategories(prev => prev.filter(c => c._id !== deleteState.id));
                 toast.success("Deleted");
+                setDeleteState({ isOpen: false, id: null, isDeleting: false });
+            } else {
+                throw new Error("Failed");
             }
         } catch (err) {
             toast.error("Failed to delete");
+            setDeleteState(prev => ({ ...prev, isDeleting: false }));
         }
     };
 
@@ -100,7 +114,7 @@ export default function CategoriesPage() {
                         <span className="font-bold text-gray-900 text-center">{cat.name}</span>
 
                         <button
-                            onClick={() => handleDelete(cat._id)}
+                            onClick={() => openDelete(cat._id)}
                             className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
                         >
                             <Trash2 size={14} />
@@ -110,6 +124,15 @@ export default function CategoriesPage() {
             </div>
 
             {categories.length === 0 && <div className="text-gray-400 mt-8">No categories found. Start adding some!</div>}
+
+            <DeleteModal
+                isOpen={deleteState.isOpen}
+                onClose={() => setDeleteState(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDelete}
+                isDeleting={deleteState.isDeleting}
+                title="Delete Category"
+                message="Are you sure? This doesn't remove products in this category, but unassigns them."
+            />
         </div>
     );
 }

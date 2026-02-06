@@ -6,6 +6,15 @@ export async function GET(req) {
     try {
         await connectDB();
         const { searchParams } = new URL(req.url);
+        const id = searchParams.get("id");
+
+        // Single Product Fetch
+        if (id) {
+            const product = await Product.findById(id);
+            if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+            return NextResponse.json({ product });
+        }
+
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const category = searchParams.get("category");
@@ -27,7 +36,7 @@ export async function GET(req) {
             .skip(skip)
             .limit(limit);
 
-        const total = await Product.countDocuments(query); // Fixed count query
+        const total = await Product.countDocuments(query);
         const hasMore = total > skip + products.length;
 
         return NextResponse.json({
@@ -61,6 +70,26 @@ export async function POST(req) {
         await newProduct.save();
 
         return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
+
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function PUT(req) {
+    try {
+        await connectDB();
+        const body = await req.json();
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get("id");
+
+        if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+
+        const updatedProduct = await Product.findByIdAndUpdate(id, body, { new: true });
+
+        if (!updatedProduct) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+        return NextResponse.json({ success: true, product: updatedProduct });
 
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });

@@ -2,17 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
+import DeleteModal from "@/components/admin/DeleteModal";
+import Pagination from "@/components/admin/Pagination";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [deleteState, setDeleteState] = useState({ isOpen: false, id: null, isDeleting: false });
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     const fetchProducts = async () => {
         try {
-            const res = await fetch('/api/products?limit=100'); // simple all fetch for now
+            const res = await fetch('/api/products?limit=100'); // Fetches reasonable batch
             const json = await res.json();
             if (json.products) setProducts(json.products);
         } catch (err) {
@@ -26,22 +31,35 @@ export default function ProductsPage() {
         fetchProducts();
     }, []);
 
-    const handleDelete = async (id) => {
-        if (!confirm("Are you sure you want to delete this product?")) return;
+    const openDelete = (id) => {
+        setDeleteState({ isOpen: true, id, isDeleting: false });
+    };
 
+    const confirmDelete = async () => {
+        if (!deleteState.id) return;
+
+        setDeleteState(prev => ({ ...prev, isDeleting: true }));
         const toastId = toast.loading("Deleting...");
+
         try {
-            const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+            const res = await fetch(`/api/products?id=${deleteState.id}`, { method: 'DELETE' });
             if (res.ok) {
-                setProducts(prev => prev.filter(p => p._id !== id));
-                toast.success("Deleted", { id: toastId });
+                setProducts(prev => prev.filter(p => p._id !== deleteState.id));
+                toast.success("Deleted successfully", { id: toastId });
+                setDeleteState({ isOpen: false, id: null, isDeleting: false });
             } else {
                 throw new Error("Failed");
             }
         } catch (err) {
             toast.error("Error deleting", { id: toastId });
+            setDeleteState(prev => ({ ...prev, isDeleting: false }));
         }
     };
+
+    const paginatedProducts = products.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     if (loading) return <div className="p-8">Loading...</div>;
 
@@ -62,53 +80,92 @@ export default function ProductsPage() {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
-                            <th className="px-6 py-4 font-medium">Product</th>
-                            <th className="px-6 py-4 font-medium">Category</th>
-                            <th className="px-6 py-4 font-medium">Price</th>
-                            <th className="px-6 py-4 font-medium">Stock/Variants</th>
-                            <th className="px-6 py-4 font-medium text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {products.map((product) => (
-                            <tr key={product._id} className="hover:bg-gray-50 transition-colors group">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-md bg-gray-100 relative overflow-hidden">
-                                            {product.images?.[0] ? (
-                                                <Image src={product.images[0]} fill className="object-cover" alt={product.name} />
-                                            ) : (
-                                                <div className="w-full h-full bg-gray-200" />
-                                            )}
-                                        </div>
-                                        <span className="font-medium text-gray-900 text-sm truncate max-w-[200px] block">{product.name}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">{product.category}</td>
-                                <td className="px-6 py-4 text-sm font-medium text-gray-900">Rs. {product.pricing?.salePrice}</td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
-                                    {product.variants?.length} variants
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => handleDelete(product._id)}
-                                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </td>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-1">
+                <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-4 font-medium">Product</th>
+                                <th className="px-6 py-4 font-medium">Category</th>
+                                <th className="px-6 py-4 font-medium">Price</th>
+                                <th className="px-6 py-4 font-medium">Stock</th>
+                                <th className="px-6 py-4 font-medium text-right">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {products.length === 0 && <div className="p-12 text-center text-gray-400">No products found.</div>}
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {paginatedProducts.map((product) => (
+                                <tr key={product._id} className="hover:bg-gray-50 transition-colors group">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-md bg-gray-100 relative overflow-hidden flex-shrink-0">
+                                                {product.images?.[0] ? (
+                                                    <Image src={product.images[0]} fill className="object-cover" alt={product.name} />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gray-200" />
+                                                )}
+                                            </div>
+                                            <span className="font-medium text-gray-900 text-sm truncate max-w-[200px] block" title={product.name}>{product.name}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">{product.category}</td>
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Rs. {product.pricing?.salePrice}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {product.variants?.[0]?.stock}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={`/product/${product.slug}`}
+                                                target="_blank"
+                                                className="p-2 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-gray-400 transition-colors"
+                                                title="View Live"
+                                            >
+                                                <Eye size={18} />
+                                            </Link>
+                                            <Link
+                                                href={`/seller-center/products/edit/${product._id}`}
+                                                className="p-2 hover:bg-green-50 hover:text-green-600 rounded-lg text-gray-400 transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Edit size={18} />
+                                            </Link>
+                                            <button
+                                                onClick={() => openDelete(product._id)}
+                                                className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {products.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400">No products found.</div>
+                ) : (
+                    <div className="px-4 pb-4">
+                        <Pagination
+                            currentPage={currentPage}
+                            totalItems={products.length}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            onPageChange={setCurrentPage}
+                        />
+                    </div>
+                )}
             </div>
+
+            <DeleteModal
+                isOpen={deleteState.isOpen}
+                onClose={() => setDeleteState(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmDelete}
+                isDeleting={deleteState.isDeleting}
+                title="Delete Product"
+                message="Are you sure you want to delete this product? This will remove it from the catalog permanently."
+            />
         </div>
     );
 }
