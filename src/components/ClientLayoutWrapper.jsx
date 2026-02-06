@@ -7,20 +7,14 @@ import BottomNav from "@/components/BottomNav";
 import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
 import { Toaster } from 'react-hot-toast';
+import { SessionProvider } from "next-auth/react";
 
 export default function ClientLayoutWrapper({ children }) {
   const pathname = usePathname();
-  // Check if we are in the admin dashboard (seller-center) OR auth pages (login/register) 
-  // User said "remove footer for admin", but usually auth pages also don't need full footer/nav? 
-  // Let's stick strictly to "admin" for now as requested, but maybe exclude auth/login if it looks weird.
-  // User request: "remove the footer for admin And the navbar also"
-  
   const isAdmin = pathname?.startsWith("/seller-center");
-  // Optional: Also hide on login page? User didn't ask, but it's cleaner. 
-  // Let's stick to user request.
 
   return (
-    <>
+    <SessionProvider>
       {!isAdmin && <ServiceBar />}
       {!isAdmin && <Navbar />}
       
@@ -31,28 +25,37 @@ export default function ClientLayoutWrapper({ children }) {
       {!isAdmin && <Footer />}
       {!isAdmin && <BottomNav />}
       
-      {/* Drawer and Toaster can be global, or Drawer hidden on admin */}
       {!isAdmin && <CartDrawer />}
       
       <Toaster
           position="bottom-right"
           toastOptions={{
+            className: '!bg-white/70 !backdrop-blur-xl !shadow-2xl !border !border-white/20 !rounded-2xl !text-gray-900', 
             style: {
-              background: '#000',
-              color: '#fff',
-              borderRadius: '0px',
-              border: '1px solid #333',
-              fontFamily: 'var(--font-inter)',
-              fontSize: '14px',
+              background: 'rgba(255, 255, 255, 0.8)',
+              backdropFilter: 'blur(16px)',
+              color: '#000',
+              borderRadius: '16px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              padding: '12px 20px',
+              fontFamily: 'var(--font-mulish)',
+              fontWeight: 600,
             },
             success: {
               iconTheme: {
-                primary: '#fff',
-                secondary: '#000',
+                primary: '#000',
+                secondary: '#e5e7eb',
               },
             },
+            error: {
+               iconTheme: {
+                primary: '#ef4444',
+                secondary: '#ffe4e6',
+               }
+            }
           }}
         />
-    </>
+    </SessionProvider>
   );
 }
