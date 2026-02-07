@@ -28,6 +28,17 @@ const SaleSchema = new mongoose.Schema({
     label: {
         type: String, // e.g., "FLAT 50% OFF"
     },
+    description: {
+        type: String,
+        default: ""
+    },
+    startDate: {
+        type: Date,
+        default: Date.now
+    },
+    endDate: {
+        type: Date
+    },
     isActive: {
         type: Boolean,
         default: true

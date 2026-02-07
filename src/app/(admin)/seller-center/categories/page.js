@@ -2,14 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { Trash2, Tag } from "lucide-react";
+import { Trash2, Tag, Edit } from "lucide-react";
 import DeleteModal from "@/components/admin/DeleteModal";
+import Loader from "@/components/admin/Loader";
+import CategoryUpdateModal from "@/components/admin/CategoryUpdateModal";
 
 export default function CategoriesPage() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newCat, setNewCat] = useState("");
     const [adding, setAdding] = useState(false);
+
+    // Edit State
+    const [editModal, setEditModal] = useState(null); // Category object or null
 
     // Delete State
     const [deleteState, setDeleteState] = useState({ isOpen: false, id: null, isDeleting: false });
@@ -58,6 +63,51 @@ export default function CategoriesPage() {
         }
     };
 
+    const openEdit = (category) => {
+        setEditModal(category);
+    };
+
+    const handleUpdateName = async (categoryId, newName) => {
+        const toastId = toast.loading("Updating name...");
+        try {
+            const res = await fetch('/api/categories', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: categoryId, name: newName })
+            });
+
+            if (res.ok) {
+                setCategories(prev => prev.map(c => c._id === categoryId ? { ...c, name: newName } : c));
+                setEditModal(prev => ({ ...prev, name: newName }));
+                toast.success("Updated!", { id: toastId });
+            } else {
+                throw new Error("Failed to update");
+            }
+        } catch (e) {
+            toast.error("Error updating name", { id: toastId });
+        }
+    };
+
+    const handleRemoveProduct = async (productId) => {
+        const toastId = toast.loading("Removing product...");
+        try {
+            const res = await fetch(`/api/products?id=${productId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: "" })
+            });
+
+            if (res.ok) {
+                toast.success("Product removed from category", { id: toastId });
+                return true;
+            }
+            return false;
+        } catch (e) {
+            toast.error("Failed to remove product", { id: toastId });
+            return false;
+        }
+    };
+
     const openDelete = (id) => {
         setDeleteState({ isOpen: true, id, isDeleting: false });
     };
@@ -81,7 +131,7 @@ export default function CategoriesPage() {
         }
     };
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    if (loading) return <Loader />;
 
     return (
         <div className="space-y-6">
@@ -113,17 +163,35 @@ export default function CategoriesPage() {
                         </div>
                         <span className="font-bold text-gray-900 text-center">{cat.name}</span>
 
-                        <button
-                            onClick={() => openDelete(cat._id)}
-                            className="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
-                        >
-                            <Trash2 size={14} />
-                        </button>
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => openEdit(cat)}
+                                className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                                title="Edit Category"
+                            >
+                                <Edit size={14} />
+                            </button>
+                            <button
+                                onClick={() => openDelete(cat._id)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                title="Delete Category"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        </div>
                     </div>
                 ))}
             </div>
 
             {categories.length === 0 && <div className="text-gray-400 mt-8">No categories found. Start adding some!</div>}
+
+            <CategoryUpdateModal
+                isOpen={!!editModal}
+                onClose={() => setEditModal(null)}
+                category={editModal}
+                onUpdateName={handleUpdateName}
+                onRemoveProduct={handleRemoveProduct}
+            />
 
             <DeleteModal
                 isOpen={deleteState.isOpen}

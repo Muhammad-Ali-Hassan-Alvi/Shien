@@ -1,5 +1,6 @@
 import connectDB from "@/app/lib/config/db";
 import Category from "@/app/lib/model/Category";
+import Product from "@/app/lib/model/Product";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -26,6 +27,50 @@ export async function POST(req) {
     } catch (error) {
         if (error.code === 11000) {
             return NextResponse.json({ error: "Category already exists" }, { status: 400 });
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+
+
+export async function PUT(req) {
+    try {
+        await connectDB();
+        const body = await req.json();
+        const { id, name, description, image } = body;
+
+        if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
+
+        const category = await Category.findById(id);
+        if (!category) {
+            return NextResponse.json({ error: "Category not found" }, { status: 404 });
+        }
+
+        const oldName = category.name;
+        const fieldsToUpdate = {};
+
+        if (name) {
+            fieldsToUpdate.name = name;
+            fieldsToUpdate.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        }
+        if (description) fieldsToUpdate.description = description;
+        if (image) fieldsToUpdate.image = image;
+
+        const updated = await Category.findByIdAndUpdate(id, fieldsToUpdate, { new: true });
+
+        // Update Products if name changed
+        if (name && name !== oldName) {
+            await Product.updateMany(
+                { category: oldName },
+                { $set: { category: name } }
+            );
+        }
+
+        return NextResponse.json({ success: true, category: updated });
+    } catch (error) {
+        if (error.code === 11000) {
+            return NextResponse.json({ error: "Category name already exists" }, { status: 400 });
         }
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
