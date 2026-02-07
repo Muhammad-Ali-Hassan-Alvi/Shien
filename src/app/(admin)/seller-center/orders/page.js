@@ -21,6 +21,9 @@ export default function OrdersPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 10;
 
+    const [statusFilter, setStatusFilter] = useState("All");
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+
     const fetchOrders = async () => {
         try {
             const res = await fetch('/api/orders');
@@ -56,18 +59,53 @@ export default function OrdersPage() {
         }
     };
 
-    const paginatedOrders = orders.slice(
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const sortedOrders = [...orders].sort((a, b) => {
+        if (sortConfig.key === 'totalAmount') {
+            return sortConfig.direction === 'asc' ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+        }
+        if (sortConfig.key === 'createdAt') {
+            return sortConfig.direction === 'asc' ? new Date(a.createdAt) - new Date(b.createdAt) : new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        if (sortConfig.key === 'status') {
+            return sortConfig.direction === 'asc' ? a.status.localeCompare(b.status) : b.status.localeCompare(a.status);
+        }
+        return 0;
+    });
+
+    const filteredOrders = sortedOrders.filter(order =>
+        statusFilter === "All" ? true : order.status === statusFilter
+    );
+
+    const paginatedOrders = filteredOrders.slice(
         (currentPage - 1) * ITEMS_PER_PAGE,
         currentPage * ITEMS_PER_PAGE
     );
 
-    if (loading) return <Loader />;
+    // ...
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
-                <p className="text-gray-500 text-sm">Track and manage customer orders ({orders.length})</p>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+                    <p className="text-gray-500 text-sm">Track and manage customer orders ({filteredOrders.length})</p>
+                </div>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-black"
+                >
+                    <option value="All">All Status</option>
+                    {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
             </div>
 
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-1">
@@ -78,9 +116,9 @@ export default function OrdersPage() {
                                 <th className="px-6 py-4">Order ID</th>
                                 <th className="px-6 py-4">Customer</th>
                                 <th className="px-6 py-4">Items</th>
-                                <th className="px-6 py-4">Total</th>
-                                <th className="px-6 py-4">Date</th>
-                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('totalAmount')}>Total {sortConfig.key === 'totalAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('createdAt')}>Date {sortConfig.key === 'createdAt' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
+                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100" onClick={() => handleSort('status')}>Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">

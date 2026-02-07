@@ -13,12 +13,15 @@ const playfair = Playfair_Display({
   variable: "--font-playfair"
 });
 
+import { auth } from "@/auth";
+
 export const metadata = {
   title: "iMART | High-End Fashion",
   description: "Premium Fashion for Pakistan",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const session = await auth();
   return (
     <html lang="en">
       <body
@@ -30,7 +33,7 @@ export default function RootLayout({ children }) {
           <div className="mesh-blob blob-2"></div>
           <div className="mesh-blob blob-3"></div>
         </div>
-        <ClientLayoutWrapper>
+        <ClientLayoutWrapper session={session}>
           {children}
         </ClientLayoutWrapper>
       </body>

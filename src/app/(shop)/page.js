@@ -57,6 +57,12 @@ export default async function HomePage({ searchParams }) {
             {/* Main Shop Area */}
             <div id="shop" className="max-w-7xl mx-auto px-4 md:px-12 py-12">
                 <ProductGrid initialProducts={mainProducts} />
+
+                <div className="mt-8 text-center md:hidden">
+                    <Link href="/products" className="inline-block bg-black text-white px-8 py-3 rounded-full font-bold text-sm hover:bg-gray-800 transition-colors">
+                        View All Products
+                    </Link>
+                </div>
             </div>
         </div>
     );

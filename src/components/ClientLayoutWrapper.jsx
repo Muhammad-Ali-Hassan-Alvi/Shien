@@ -9,12 +9,12 @@ import Footer from "@/components/Footer";
 import { Toaster } from 'react-hot-toast';
 import { SessionProvider } from "next-auth/react";
 
-export default function ClientLayoutWrapper({ children }) {
+export default function ClientLayoutWrapper({ children, session }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/seller-center");
 
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       {!isAdmin && <ServiceBar />}
       {!isAdmin && <Navbar />}
       

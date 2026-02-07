@@ -7,6 +7,7 @@ import { useUIStore } from "@/store/useUIStore";
 import { Star, Truck, ShieldCheck, RefreshCcw, Heart, Share2, Plus, Minus, ChevronRight, Copy, MapPin } from "lucide-react";
 import ProductGrid from "./ProductGrid";
 import Link from "next/link";
+import ProductQA from "./ProductQA";
 
 export default function ProductView({ product }) {
   const { addItem } = useCartStore();
@@ -210,6 +211,8 @@ export default function ProductView({ product }) {
         </div>
 
       </div>
+
+      <ProductQA product={product} />
 
       {/* Recommended Products */}
       <div className="max-w-[1600px] mx-auto px-4 md:px-8 mt-24">

@@ -15,33 +15,52 @@ import connectDB from "./config/db";
 
 export async function authenticate(prevState, formData) {
     try {
-        const identifier = formData.get('email') || formData.get('identifier');
-        const password = formData.get('password');
-        const isAdminLogin = formData.get('isAdminLogin');
+        // formData can be a FormData object or a plain object if called directly (though actions receive FormData)
+        // If called from client transition (useResult), it's FormData.
+
+        // Handle both FormData object and plain object (in case of direct call)
+        let identifier, password;
+
+        if (formData instanceof FormData) {
+            identifier = formData.get('identifier');
+            password = formData.get('password');
+        } else {
+            // Fallback if passed as plain object/arguments (not ideal for server action used in form)
+            // But user code was calling authenticate(identifier, password) directly!
+            // THIS is the issue. The client code is calling it like a normal function with args.
+            // Server Actions should be called with FormData regarding useFormState, OR arguments.
+            // If the client calls `authenticate(id, pass)`, then `prevState` is `id` and `formData` is `pass`.
+            // BUT `authenticate` is exported as an action. 
+
+            // Let's adapt the function to support direct argument call which the client is doing.
+            // Client: authenticate(identifier, password)
+            // So: prevState = identifier, formData = password.
+
+            identifier = prevState;
+            password = formData;
+        }
+
+        if (!identifier || !password) return { error: "Missing fields" };
 
         await signIn("credentials", {
             identifier,
             password,
-            isAdminLogin,
             redirect: false,
         });
 
-        // If sign in is successful and redirect: false, we need to manually redirect or return success
-        // But for Admin Login, we want to redirect to /seller-center
-        // For User Login, we might want /profile or /
+        // We need to know who logged in to return role
+        // Re-fetch session?
+        // Or just return success.
+        // Client side refresh will handle session update.
 
-        // Actually, let's use redirect: true but handled by the component? 
-        // No, Server Actions can redirect.
+        // Hack: We don't have the user object here easily from signIn(redirect:false) in v5 without `auth()`.
+        // Let's query DB to get role for redirect hint.
+        await connectDB();
+        // Check for email or phone
+        const user = await User.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
+        const role = user?.role || 'user';
 
-        /* 
-           NextAuth v5 Note: signIn throws an error for redirects. 
-           If we use redirect: false, it returns undefined or throws error.
-        */
-
-        // Let's re-call signIn with redirect: true for simplicity, or handle manually.
-        // But we already did redirect: false above.
-        // It's cleaner to let the Client Side handle redirection based on success, 
-        // OR just throw redirect here.
+        return { success: true, role };
 
     } catch (error) {
         if (error instanceof AuthError) {
@@ -55,29 +74,14 @@ export async function authenticate(prevState, formData) {
         throw error;
     }
 
-    // Manual Redirect on Success
-    // We can't use `redirect` inside try/catch easily with AuthError check unless we catch it separately.
-    // Ideally we let signIn handle it, but we used redirect: false above.
-    // Let's change strategy: just return success and let client redirect?
-    // OR: use redirect() from next/navigation
-
-    const isAdmin = formData.get('isAdminLogin') === 'true';
-    if (isAdmin) {
-        // We need to import redirect
-        const { redirect } = await import("next/navigation");
-        redirect("/seller-center");
-    } else {
-        const { redirect } = await import("next/navigation");
-        redirect("/profile");
-    }
 }
 
-
-// -- Profile & Settings Actions --
 
 import { auth } from "@/auth";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+
+// -- Profile & Settings Actions --
 
 export async function updateProfile(formData) {
     try {

@@ -1,5 +1,7 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import User from "@/app/lib/model/User";
+import Notification from "@/app/lib/model/Notification";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -10,15 +12,19 @@ export async function GET(req) {
 
         // Single Product Fetch
         if (id) {
-            const product = await Product.findById(id);
+            const product = await Product.findById(id).lean();
             if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
-            return NextResponse.json({ product });
+
+            // Add wishlist count for single product
+            const wishlistCount = await User.countDocuments({ wishlist: id });
+            return NextResponse.json({ product: { ...product, wishlistCount } });
         }
 
         const page = parseInt(searchParams.get("page") || "1");
         const limit = parseInt(searchParams.get("limit") || "10");
         const category = searchParams.get("category");
         const sort = searchParams.get("sort");
+        const includeStats = searchParams.get("includeStats"); // Flag for admin
 
         const skip = (page - 1) * limit;
 
@@ -31,13 +37,34 @@ export async function GET(req) {
         if (sort === 'price_asc') sortOption = { "pricing.salePrice": 1, _id: -1 };
         if (sort === 'price_desc') sortOption = { "pricing.salePrice": -1, _id: -1 };
 
-        const products = await Product.find(query)
+        let products = await Product.find(query)
             .sort(sortOption)
             .skip(skip)
-            .limit(limit);
+            .limit(limit)
+            .lean();
 
         const total = await Product.countDocuments(query);
         const hasMore = total > skip + products.length;
+
+        // If admin requests stats (like wishlist count)
+        if (includeStats === 'true') {
+            const productIds = products.map(p => p._id);
+
+            // Aggregate wishlist counts
+            const wishlistCounts = await User.aggregate([
+                { $unwind: "$wishlist" },
+                { $match: { wishlist: { $in: productIds } } },
+                { $group: { _id: "$wishlist", count: { $sum: 1 } } }
+            ]);
+
+            const countMap = {};
+            wishlistCounts.forEach(w => countMap[w._id.toString()] = w.count);
+
+            products = products.map(p => ({
+                ...p,
+                wishlistCount: countMap[p._id.toString()] || 0
+            }));
+        }
 
         return NextResponse.json({
             products,
@@ -85,9 +112,38 @@ export async function PUT(req) {
 
         if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
+        // Get OLD product to check stock
+        const oldProduct = await Product.findById(id);
+        if (!oldProduct) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+        // Calculate old stock (sum of variants or totalStock field if exists - assuming variants approach)
+        const oldStock = oldProduct.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
+
+        // Update Product
         const updatedProduct = await Product.findByIdAndUpdate(id, body, { new: true });
 
-        if (!updatedProduct) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+        // Calculate new stock
+        const newStock = updatedProduct.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
+
+        // RESTOCK ALERT LOGIC
+        // If it was out of stock (<= 0) and now has stock (> 0)
+        if (oldStock <= 0 && newStock > 0) {
+            // Find users who have this product in their wishlist
+            const interestedUsers = await User.find({ wishlist: id });
+
+            if (interestedUsers.length > 0) {
+                const notifications = interestedUsers.map(user => ({
+                    user: user._id,
+                    type: "Restock",
+                    message: `Good news! "${updatedProduct.name}" is back in stock!`,
+                    link: `/product/${updatedProduct.slug}`,
+                    isRead: false
+                }));
+
+                await Notification.insertMany(notifications);
+                console.log(`Created restock notifications for ${notifications.length} users.`);
+            }
+        }
 
         return NextResponse.json({ success: true, product: updatedProduct });
 

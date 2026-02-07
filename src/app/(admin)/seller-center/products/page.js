@@ -34,7 +34,7 @@ export default function ProductsPage() {
         async function fetchProducts() {
             setLoading(true);
             try {
-                let url = `/api/products?limit=100`;
+                let url = `/api/products?limit=100&includeStats=true`;
                 if (selectedCategory !== "All") {
                     url += `&category=${encodeURIComponent(selectedCategory)}`;
                 }
@@ -79,14 +79,55 @@ export default function ProductsPage() {
         }
     };
 
+    const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+
     // Filtered Products (Client-side search)
-    const filteredProducts = products.filter(product =>
+    let filteredProducts = products.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Sort Logic
+    const handleSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    filteredProducts.sort((a, b) => {
+        if (sortConfig.key === 'salePrice') {
+            return sortConfig.direction === 'asc'
+                ? (a.pricing?.salePrice || 0) - (b.pricing?.salePrice || 0)
+                : (b.pricing?.salePrice || 0) - (a.pricing?.salePrice || 0);
+        }
+        if (sortConfig.key === 'createdAt') {
+            // createdAt might not be populated in current API response, let's check
+            // If not, we might fallback to _id timestamp or assume default sort
+            // Assuming created date exists or using ID
+            return sortConfig.direction === 'asc'
+                ? (a.createdAt || 0) > (b.createdAt || 0) ? 1 : -1
+                : (b.createdAt || 0) > (a.createdAt || 0) ? 1 : -1;
+        }
+        if (sortConfig.key === 'stock') {
+            const stockA = a.variants?.reduce((acc, v) => acc + (v.stock || 0), 0) || 0;
+            const stockB = b.variants?.reduce((acc, v) => acc + (v.stock || 0), 0) || 0;
+            return sortConfig.direction === 'asc' ? stockA - stockB : stockB - stockA;
+        }
+        if (sortConfig.key === 'wishlist') {
+            return sortConfig.direction === 'asc'
+                ? (a.wishlistCount || 0) - (b.wishlistCount || 0)
+                : (b.wishlistCount || 0) - (a.wishlistCount || 0);
+        }
+        return 0;
+    });
+
+
     return (
         <div className="space-y-6 relative">
+            {/* ... control bar ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Header code */}
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Products</h1>
                     <p className="text-gray-500 text-sm mt-1">Manage and categorize your inventory</p>
@@ -137,8 +178,15 @@ export default function ProductsPage() {
                         <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
                             <th className="px-6 py-4 font-medium">Product</th>
                             <th className="px-6 py-4 font-medium">Category</th>
-                            <th className="px-6 py-4 font-medium">Price</th>
-                            <th className="px-6 py-4 font-medium">Stock</th>
+                            <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100" onClick={() => handleSort('salePrice')}>
+                                Price {sortConfig.key === 'salePrice' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100" onClick={() => handleSort('wishlist')}>
+                                Wishlist {sortConfig.key === 'wishlist' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
+                            <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100" onClick={() => handleSort('stock')}>
+                                Stock {sortConfig.key === 'stock' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                            </th>
                             <th className="px-6 py-4 font-medium text-right">Actions</th>
                         </tr>
                     </thead>
@@ -200,6 +248,9 @@ export default function ProductsPage() {
                                         {product.pricing?.discountLabel && (
                                             <span className="ml-2 text-[10px] text-red-500 bg-red-50 px-1 py-0.5 rounded">{product.pricing.discountLabel}</span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {product.wishlistCount || 0}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-500">
                                         {/* Sum stock of first variant or show total if computed */}

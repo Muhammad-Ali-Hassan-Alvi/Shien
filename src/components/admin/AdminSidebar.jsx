@@ -11,6 +11,7 @@ import {
   Settings, 
   LogOut,
   Package,
+  ShieldCheck,
   MessageSquare,
   HelpCircle,
   Star,
@@ -31,6 +32,7 @@ const menuItems = [
   { name: "Q&A", href: "/seller-center/questions", icon: MessageSquare },
   { name: "Help Center", href: "/seller-center/help-center", icon: HelpCircle },
   { name: "Analytics", href: "/seller-center/analytics", icon: BarChart3 },
+  { name: "Admins", href: "/seller-center/admins", icon: ShieldCheck },
   { name: "Settings", href: "/seller-center/settings", icon: Settings },
 ];
 

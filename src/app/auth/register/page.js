@@ -4,16 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         const formData = new FormData(e.currentTarget);
         const data = Object.fromEntries(formData);
+
+        if (data.password !== data.confirmPassword) {
+            toast.error("Passwords do not match");
+            setLoading(false);
+            return;
+        }
+
+        // Remove confirmPassword before sending to API
+        delete data.confirmPassword;
 
         try {
             const res = await fetch("/api/auth/register", {
@@ -51,6 +63,16 @@ export default function RegisterPage() {
                         />
                     </div>
                     <div>
+                        <label className="text-sm font-medium text-gray-700">Email Address</label>
+                        <input
+                            name="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            required
+                            className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black"
+                        />
+                    </div>
+                    <div>
                         <label className="text-sm font-medium text-gray-700">Phone</label>
                         <input
                             name="phone"
@@ -60,14 +82,45 @@ export default function RegisterPage() {
                             className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black"
                         />
                     </div>
-                    <div>
+
+                    {/* Password Field */}
+                    <div className="relative">
                         <label className="text-sm font-medium text-gray-700">Password</label>
-                        <input
-                            name="password"
-                            type="password"
-                            required
-                            className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black"
-                        />
+                        <div className="relative">
+                            <input
+                                name="password"
+                                type={showPassword ? "text" : "password"}
+                                required
+                                className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Confirm Password Field */}
+                    <div className="relative">
+                        <label className="text-sm font-medium text-gray-700">Confirm Password</label>
+                        <div className="relative">
+                            <input
+                                name="confirmPassword"
+                                type={showConfirmPassword ? "text" : "password"}
+                                required
+                                className="w-full border p-3 rounded mt-1 outline-none focus:ring-1 focus:ring-black pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black"
+                            >
+                                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
                     </div>
 
                     <button

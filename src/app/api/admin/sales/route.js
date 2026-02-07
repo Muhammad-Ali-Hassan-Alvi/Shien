@@ -1,6 +1,8 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
 import Sale from "@/app/lib/model/Sale";
+import User from "@/app/lib/model/User";
+import Notification from "@/app/lib/model/Notification";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -60,6 +62,19 @@ export async function POST(req) {
                 affectedProductCount: count,
                 isActive: true
             });
+
+            // Notify All Users
+            const users = await User.find({}, '_id');
+            if (users.length > 0) {
+                const notes = users.map(u => ({
+                    user: u._id,
+                    type: "Sale",
+                    message: `SALE ALERT! ${label || `FLAT ${percentage}% OFF`} on ${targetValue || 'everything'}!`,
+                    link: "/", // Or a specific sales page
+                    isRead: false
+                }));
+                await Notification.insertMany(notes);
+            }
         }
 
         else if (action === "apply_sale") {
@@ -88,6 +103,19 @@ export async function POST(req) {
                 affectedProductCount: count,
                 isActive: true
             });
+
+            // Notify All Users
+            const users = await User.find({}, '_id');
+            if (users.length > 0) {
+                const notes = users.map(u => ({
+                    user: u._id,
+                    type: "Sale",
+                    message: `SALE ALERT! ${label || `FLAT ${percentage}% OFF`} on ${targetValue || 'everything'}!`,
+                    link: "/", // Or a specific sales page
+                    isRead: false
+                }));
+                await Notification.insertMany(notes);
+            }
         }
 
         // ... (Other legacy actions if needed, or keep them)
