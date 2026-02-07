@@ -465,12 +465,12 @@ export default function SalesPage() {
             {/* Edit Modal */}
             {editModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-black text-white">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-black text-white flex-none">
                             <h2 className="text-xl font-bold">Edit Campaign</h2>
                             <button onClick={() => setEditModal(null)} className="hover:text-gray-300"><Calendar size={20} /></button>
                         </div>
-                        <form onSubmit={handleEditSave} className="p-6 space-y-4">
+                        <form onSubmit={handleEditSave} className="p-6 space-y-4 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-bold mb-1">Campaign Name</label>
                                 <input disabled value={editModal.name} className="w-full border p-2 rounded bg-gray-100 text-gray-500" />
