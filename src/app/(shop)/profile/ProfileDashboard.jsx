@@ -21,7 +21,7 @@ const getStatusColor = (status) => {
 export default function ProfileDashboard({ user, orders }) {
     const [activeTab, setActiveTab] = useState("overview");
     const [orderFilter, setOrderFilter] = useState("ALL");
-    
+
     // Stats
     const pendingCount = orders.filter(o => ['Pending', 'Confirmed', 'Processing'].includes(o.status)).length;
     const receivedCount = orders.filter(o => o.status === 'Delivered').length;
@@ -38,7 +38,7 @@ export default function ProfileDashboard({ user, orders }) {
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4">
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
-                
+
                 {/* Sidebar */}
                 <div className="lg:col-span-1">
                     <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 sticky top-24">
@@ -51,25 +51,31 @@ export default function ProfileDashboard({ user, orders }) {
                         </div>
 
                         <nav className="space-y-2">
-                            <button 
+                            <button
                                 onClick={() => setActiveTab("overview")}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'overview' ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-600'}`}
                             >
                                 <User size={18} /> Overview
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setActiveTab("orders")}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'orders' ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-600'}`}
                             >
                                 <Package size={18} /> My Orders
                             </button>
-                            <button 
+                            <a
+                                href="/profile/help-center"
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors hover:bg-gray-50 text-gray-600"
+                            >
+                                <CheckCircle size={18} /> Help Center
+                            </a>
+                            <button
                                 onClick={() => setActiveTab("settings")}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'settings' ? 'bg-black text-white' : 'hover:bg-gray-50 text-gray-600'}`}
                             >
                                 <Settings size={18} /> Settings
                             </button>
-                            <button 
+                            <button
                                 onClick={() => signOut({ callbackUrl: '/' })}
                                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors mt-8"
                             >
@@ -81,16 +87,16 @@ export default function ProfileDashboard({ user, orders }) {
 
                 {/* Main Content */}
                 <div className="lg:col-span-3">
-                    
+
                     {/* Overview Tab */}
                     {activeTab === 'overview' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 bg-gradient-to-r from-gray-900 to-black text-white">
+                            <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-100 bg-gradient-to-r from-gray-900 to-black text-white">
                                 <h1 className="text-3xl font-playfair font-bold mb-2">Hello, {user.name}</h1>
                                 <p className="text-gray-400">Here's what's happening with your account today.</p>
-                             </div>
+                            </div>
 
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Orders</p>
@@ -112,55 +118,55 @@ export default function ProfileDashboard({ user, orders }) {
                                     </div>
                                     <div className="bg-green-50 p-3 text-green-600 rounded-full"><CheckCircle size={24} /></div>
                                 </div>
-                             </div>
+                            </div>
 
-                             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                                     <h3 className="font-bold text-lg">Recent Activity</h3>
-                                     <button onClick={() => setActiveTab('orders')} className="text-sm underline">View All</button>
-                                 </div>
-                                 <div className="divide-y divide-gray-100">
-                                     {orders.slice(0, 3).map(order => (
-                                         <div key={order._id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                                             <div className="flex items-center gap-4">
-                                                 <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                                     <Package size={20} className="text-gray-600"/>
-                                                 </div>
-                                                 <div>
-                                                     <p className="font-bold text-sm">Order #{order._id.toString().slice(-6)}</p>
-                                                     <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
-                                                 </div>
-                                             </div>
-                                             <div className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
-                                                 {order.status}
-                                             </div>
-                                         </div>
-                                     ))}
-                                     {orders.length === 0 && <p className="p-6 text-gray-500 text-center">No recent activity.</p>}
-                                 </div>
-                             </div>
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-lg">Recent Activity</h3>
+                                    <button onClick={() => setActiveTab('orders')} className="text-sm underline">View All</button>
+                                </div>
+                                <div className="divide-y divide-gray-100">
+                                    {orders.slice(0, 3).map(order => (
+                                        <div key={order._id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                                    <Package size={20} className="text-gray-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm">Order #{order._id.toString().slice(-6)}</p>
+                                                    <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
+                                                {order.status}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {orders.length === 0 && <p className="p-6 text-gray-500 text-center">No recent activity.</p>}
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {/* Orders Tab */}
                     {activeTab === 'orders' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <div className="flex justify-between items-center">
-                                 <h2 className="text-2xl font-bold font-playfair">My Orders ({orders.length})</h2>
-                                 <div className="flex bg-white p-1 rounded-lg border border-gray-200">
-                                     {['ALL', 'PENDING', 'RECEIVED'].map(filter => (
-                                         <button 
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-2xl font-bold font-playfair">My Orders ({orders.length})</h2>
+                                <div className="flex bg-white p-1 rounded-lg border border-gray-200">
+                                    {['ALL', 'PENDING', 'RECEIVED'].map(filter => (
+                                        <button
                                             key={filter}
                                             onClick={() => setOrderFilter(filter)}
                                             className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${orderFilter === filter ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-                                         >
-                                             {filter}
-                                         </button>
-                                     ))}
-                                 </div>
-                             </div>
+                                        >
+                                            {filter}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-                             <div className="space-y-4">
+                            <div className="space-y-4">
                                 {filteredOrders.length === 0 ? (
                                     <div className="bg-white p-12 rounded-2xl text-center border border-gray-100">
                                         <Package size={48} className="mx-auto text-gray-300 mb-4" />
@@ -197,7 +203,7 @@ export default function ProfileDashboard({ user, orders }) {
                                         </div>
                                     ))
                                 )}
-                             </div>
+                            </div>
                         </div>
                     )}
 
@@ -217,7 +223,7 @@ export default function ProfileDashboard({ user, orders }) {
 
 function UserSettingsForm({ user }) {
     const [loading, setLoading] = useState(false);
-    
+
     // Profile Update
     async function handleProfile(e) {
         e.preventDefault();
@@ -268,15 +274,15 @@ function UserSettingsForm({ user }) {
                 <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Key size={20} /> Security</h3>
                 <div className="space-y-4">
                     <div>
-                         <label className="text-xs font-bold uppercase text-gray-500">Current Password</label>
-                         <input name="current" type="password" className="w-full border p-3 rounded-lg mt-1 outline-none focus:ring-1 focus:ring-black" required />
+                        <label className="text-xs font-bold uppercase text-gray-500">Current Password</label>
+                        <input name="current" type="password" className="w-full border p-3 rounded-lg mt-1 outline-none focus:ring-1 focus:ring-black" required />
                     </div>
                     <div>
-                         <label className="text-xs font-bold uppercase text-gray-500">New Password</label>
-                         <input name="new" type="password" className="w-full border p-3 rounded-lg mt-1 outline-none focus:ring-1 focus:ring-black" required />
+                        <label className="text-xs font-bold uppercase text-gray-500">New Password</label>
+                        <input name="new" type="password" className="w-full border p-3 rounded-lg mt-1 outline-none focus:ring-1 focus:ring-black" required />
                     </div>
                     <button disabled={loading} className="px-6 py-2 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 transition disabled:opacity-50">
-                         {loading ? "Updating..." : "Change Password"}
+                        {loading ? "Updating..." : "Change Password"}
                     </button>
                 </div>
             </form>

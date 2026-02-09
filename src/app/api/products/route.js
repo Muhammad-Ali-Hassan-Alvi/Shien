@@ -26,10 +26,19 @@ export async function GET(req) {
         const sort = searchParams.get("sort");
         const includeStats = searchParams.get("includeStats"); // Flag for admin
 
+        const search = searchParams.get("search");
+
         const skip = (page - 1) * limit;
 
         const query = {};
         if (category) query.category = new RegExp(category, 'i');
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { slug: { $regex: search, $options: 'i' } }
+            ];
+        }
 
         let sortOption = { createdAt: -1, _id: -1 };
         if (sort === 'bestsellers') sortOption = { "pricing.salePrice": 1, _id: -1 };

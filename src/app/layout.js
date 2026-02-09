@@ -21,7 +21,14 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  const session = await auth();
+  let session = await auth();
+
+  // Safeguard: If auth returns an error object, sanitize it to null
+  if (session?.error) {
+    console.error("Session Error detected:", session.error);
+    session = null;
+  }
+
   return (
     <html lang="en">
       <body

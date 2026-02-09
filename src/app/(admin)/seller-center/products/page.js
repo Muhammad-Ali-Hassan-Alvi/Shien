@@ -265,7 +265,23 @@ export default function ProductsPage() {
                                             >
                                                 <Edit size={16} />
                                             </Link>
-                                            <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors" title="Delete Product (Not Implemented)">
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm('Are you sure you want to delete this product?')) {
+                                                        const { deleteProduct } = await import("@/app/lib/product-actions");
+                                                        const res = await deleteProduct(product._id);
+                                                        if (res.success) {
+                                                            toast.success("Product deleted");
+                                                            // Refresh list
+                                                            setProducts(products.filter(p => p._id !== product._id));
+                                                        } else {
+                                                            toast.error(res.error);
+                                                        }
+                                                    }
+                                                }}
+                                                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors"
+                                                title="Delete Product"
+                                            >
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>

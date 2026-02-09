@@ -13,8 +13,16 @@ export default function AdminLoginPage() {
     const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
-        if (errorMessage) {
+        if (errorMessage?.error) {
+            toast.error(errorMessage.error);
+        } else if (typeof errorMessage === 'string') {
             toast.error(errorMessage);
+        } else if (errorMessage?.success) {
+            toast.success("Login Successful!");
+            // Redirect or Router push implies client component needs router
+            // But usually authenticate action might redirect? 
+            // Since we returned success, we can redirect via JS:
+            window.location.href = "/seller-center";
         }
     }, [errorMessage]);
 

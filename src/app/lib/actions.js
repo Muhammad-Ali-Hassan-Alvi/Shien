@@ -15,27 +15,15 @@ import connectDB from "./config/db";
 
 export async function authenticate(prevState, formData) {
     try {
-        // formData can be a FormData object or a plain object if called directly (though actions receive FormData)
-        // If called from client transition (useResult), it's FormData.
-
-        // Handle both FormData object and plain object (in case of direct call)
-        let identifier, password;
+        let identifier, password, isAdminLogin;
 
         if (formData instanceof FormData) {
-            identifier = formData.get('identifier');
+            identifier = formData.get('identifier') || formData.get('email');
             password = formData.get('password');
+            isAdminLogin = formData.get('isAdminLogin');
         } else {
-            // Fallback if passed as plain object/arguments (not ideal for server action used in form)
-            // But user code was calling authenticate(identifier, password) directly!
-            // THIS is the issue. The client code is calling it like a normal function with args.
-            // Server Actions should be called with FormData regarding useFormState, OR arguments.
-            // If the client calls `authenticate(id, pass)`, then `prevState` is `id` and `formData` is `pass`.
-            // BUT `authenticate` is exported as an action. 
-
-            // Let's adapt the function to support direct argument call which the client is doing.
-            // Client: authenticate(identifier, password)
-            // So: prevState = identifier, formData = password.
-
+            // Fallback for direct calls (not recommended but keeping backward compat locally)
+            // usage: authenticate(identifier, password)
             identifier = prevState;
             password = formData;
         }
@@ -45,20 +33,26 @@ export async function authenticate(prevState, formData) {
         await signIn("credentials", {
             identifier,
             password,
+            isAdminLogin,
             redirect: false,
         });
 
-        // We need to know who logged in to return role
-        // Re-fetch session?
-        // Or just return success.
-        // Client side refresh will handle session update.
+        // After successful signIn (since redirect: false), we need to determine where to redirect
+        // However, middleware or client should handle redirection based on session.
+        // But the previous code wanted to return role.
 
-        // Hack: We don't have the user object here easily from signIn(redirect:false) in v5 without `auth()`.
-        // Let's query DB to get role for redirect hint.
         await connectDB();
         // Check for email or phone
-        const user = await User.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
-        const role = user?.role || 'user';
+        let user;
+        if (isAdminLogin === 'true') {
+            // Import Admin model dynamically or ensure it is imported
+            const Admin = require("./model/Admin").default;
+            user = await Admin.findOne({ email: identifier });
+        } else {
+            user = await User.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
+        }
+
+        const role = user?.role || (isAdminLogin === 'true' ? 'admin' : 'user');
 
         return { success: true, role };
 
@@ -66,14 +60,24 @@ export async function authenticate(prevState, formData) {
         if (error instanceof AuthError) {
             switch (error.type) {
                 case "CredentialsSignin":
-                    return "Invalid credentials.";
+                    return { error: "Invalid credentials." };
                 default:
-                    return "Something went wrong.";
+                    return { error: "Something went wrong." };
             }
         }
-        throw error;
-    }
+        // If it's a "Digest" error (NextJs redirect), rethrow
+        // But here we used redirect: false, so it shouldn't redirect throw.
+        // Actually, signIn with redirect:false might still throw if something else fails? 
+        // No, it returns { error, status, ok, url } in client, but on server actions?
+        // Server-side signIn with redirect:false calls the provider. If authorize throws, it throws CallbackRouteError.
 
+        // If valid error object
+        if (error.message) {
+            return { error: error.message };
+        }
+
+        return { error: "Authentication failed" };
+    }
 }
 
 

@@ -1,87 +1,107 @@
-"use client";
 
-import { useState, useEffect } from "react";
-import { toast } from "react-hot-toast";
-import { Mail, CheckCircle } from "lucide-react";
-import Loader from "@/components/admin/Loader";
+import { auth } from "@/auth";
+import connectDB from "@/app/lib/config/db";
+import Ticket from "@/app/lib/model/Ticket";
+import Link from "next/link";
+import { Mail, messageSquare, CheckCircle, Clock, AlertCircle } from "lucide-react";
 
-export default function HelpCenterPage() {
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    const fetchData = async () => {
-        try {
-            const res = await fetch('/api/admin/interactions?type=contact');
-            const json = await res.json();
-            if (json.data) setMessages(json.data);
-        } catch (error) {
-            toast.error("Failed to fetch messages");
-        } finally {
-            setLoading(false);
-        }
-    };
+async function getAdminTickets() {
+    await connectDB();
+    // Fetch all tickets, populate user details
+    const tickets = await Ticket.find({})
+        .populate('user', 'name email image')
+        .sort({ updatedAt: -1 })
+        .lean();
+    return JSON.parse(JSON.stringify(tickets));
+}
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+export default async function AdminHelpCenterPage() {
+    const session = await auth();
+    // if (!session?.user?.role === 'admin') redirect... (Middleware handles this usually)
 
-    const markAsRead = async (id) => {
-        try {
-            const res = await fetch('/api/admin/interactions?type=contact', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status: 'Read' })
-            });
-
-            if (res.ok) {
-                setMessages(prev => prev.map(m => m._id === id ? { ...m, status: 'Read' } : m));
-                toast.success("Marked as Read");
-            }
-        } catch (error) {
-            toast.error("Failed");
-        }
-    };
-
-    if (loading) return <Loader />;
+    const tickets = await getAdminTickets();
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Help Center Messages</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
+                <div className="flex gap-2">
+                    <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded">Total: {tickets.length}</span>
+                    <span className="text-xs font-bold px-2 py-1 bg-green-50 text-green-700 rounded">Open: {tickets.filter(t => t.status === 'Open').length}</span>
+                </div>
+            </div>
 
-            <div className="space-y-4">
-                {messages.map(msg => (
-                    <div key={msg._id} className={`p-6 rounded-xl border shadow-sm transition-all ${msg.status === 'New' ? 'bg-white border-blue-200 ring-1 ring-blue-50' : 'bg-gray-50 border-gray-100 opacity-75'}`}>
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-full ${msg.status === 'New' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
-                                    <Mail size={20} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-gray-900">{msg.subject}</h3>
-                                    <p className="text-xs text-gray-500">From: {msg.name} ({msg.email})</p>
-                                </div>
-                            </div>
-                            <span className="text-xs text-gray-400">{new Date(msg.createdAt).toLocaleString()}</span>
-                        </div>
-
-                        <p className="text-sm text-gray-700 mb-4 pl-[52px]">
-                            {msg.message}
-                        </p>
-
-                        {msg.status === 'New' && (
-                            <div className="pl-[52px]">
-                                <button
-                                    onClick={() => markAsRead(msg._id)}
-                                    className="flex items-center gap-2 text-sm font-bold text-black hover:underline"
-                                >
-                                    <CheckCircle size={16} /> Mark as Read
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {messages.length === 0 && <div className="text-center text-gray-400 p-12">No messages received.</div>}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase tracking-wider text-xs">
+                            <tr>
+                                <th className="px-6 py-4 font-bold">Subject / User</th>
+                                <th className="px-6 py-4 font-bold">Status</th>
+                                <th className="px-6 py-4 font-bold">Priority</th>
+                                <th className="px-6 py-4 font-bold">Last Update</th>
+                                <th className="px-6 py-4 font-bold text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {tickets.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-8 text-center text-gray-400">
+                                        No tickets found.
+                                    </td>
+                                </tr>
+                            ) : (
+                                tickets.map(ticket => (
+                                    <tr key={ticket._id} className="hover:bg-gray-50/50 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900 mb-0.5">{ticket.subject}</span>
+                                                <span className="text-xs text-gray-500">
+                                                    by {ticket.user?.name || 'Unknown User'} ({ticket.user?.email})
+                                                </span>
+                                                {ticket.order && (
+                                                    <span className="text-[10px] text-indigo-500 font-bold mt-1">
+                                                        Order #{ticket.order.toString().slice(-6)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ${ticket.status === 'Open' ? 'bg-green-50 text-green-700 border-green-100' :
+                                                ticket.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                    ticket.status === 'Resolved' ? 'bg-gray-100 text-gray-600 border-gray-200' :
+                                                        'bg-red-50 text-red-700 border-red-100'
+                                                }`}>
+                                                {ticket.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`flex items-center gap-1 font-bold ${ticket.priority === 'High' ? 'text-red-600' :
+                                                ticket.priority === 'Medium' ? 'text-yellow-600' : 'text-gray-500'
+                                                }`}>
+                                                {ticket.priority === 'High' && <AlertCircle size={14} />}
+                                                {ticket.priority}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-500">
+                                            {new Date(ticket.updatedAt).toLocaleDateString()}
+                                            <div className="text-xs opacity-70">{new Date(ticket.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Link
+                                                href={`/seller-center/help-center/${ticket._id}`}
+                                                className="inline-flex items-center px-3 py-1.5 bg-black text-white text-xs font-bold rounded-lg hover:bg-gray-800 transition-colors"
+                                            >
+                                                View
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

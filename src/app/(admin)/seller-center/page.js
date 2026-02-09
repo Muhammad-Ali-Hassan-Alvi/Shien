@@ -94,7 +94,7 @@ export default function SellerCenterDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* Sales Chart Area */}
-                <div className="lg:col-span-2 bg-white/50 backdrop-blur-xl p-8 rounded-3xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                <div className="lg:col-span-2 bg-white/50 backdrop-blur-xl p-8 rounded-3xl border border-white/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] h-full flex flex-col">
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h3 className="font-playfair font-bold text-xl text-gray-900">Revenue Analytics</h3>
@@ -112,7 +112,7 @@ export default function SellerCenterDashboard() {
                     </div>
 
                     {/* Dynamic Bar Chart */}
-                    <div className="h-72 flex items-end justify-between gap-2 px-2 pb-2">
+                    <div className="flex-1 flex items-end justify-between gap-2 px-2 pb-2 min-h-[300px]">
                         {activeChart.data.map((val, i) => {
                             const heightPct = (val / maxVal) * 100; // Normalize height (0-100%)
                             return (

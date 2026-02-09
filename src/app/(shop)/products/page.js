@@ -8,12 +8,19 @@ import { toast } from "react-hot-toast";
 import Pagination from "@/components/admin/Pagination";
 // Reuse reusable components or generic ones
 
-export default function ShopPage({ searchParams }) {
+import { use } from "react";
+import ProductCard from "@/components/ProductCard";
+
+export default function ShopPage(props) {
+    const searchParams = use(props.searchParams);
+
+    // ... rest of state init
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [categories, setCategories] = useState([]);
     const [filters, setFilters] = useState({
         category: searchParams.category || "",
+        search: searchParams.search || "",
         sort: searchParams.sort || "new",
         minPrice: "",
         maxPrice: ""
@@ -35,6 +42,16 @@ export default function ShopPage({ searchParams }) {
         fetchCats();
     }, []);
 
+    // Sync Filters with URL Params
+    useEffect(() => {
+        setFilters(prev => ({
+            ...prev,
+            category: searchParams.category || "",
+            search: searchParams.search || "",
+            sort: searchParams.sort || "new"
+        }));
+    }, [searchParams]);
+
     // Fetch Products
     useEffect(() => {
         const fetchProducts = async () => {
@@ -45,6 +62,7 @@ export default function ShopPage({ searchParams }) {
                     limit: 12,
                     sort: filters.sort,
                     ...(filters.category && { category: filters.category }),
+                    ...(filters.search && { search: filters.search }),
                     // API might not support minPrice/maxPrice yet, need to implement filtering logic
                 });
 
@@ -81,7 +99,9 @@ export default function ShopPage({ searchParams }) {
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
             <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
                 <div>
-                    <h1 className="text-4xl font-playfair font-bold text-gray-900">All Products</h1>
+                    <h1 className="text-4xl font-playfair font-bold text-gray-900">
+                        {filters.search ? `Results for "${filters.search}"` : "All Products"}
+                    </h1>
                     <p className="text-gray-500 mt-2">Explore our latest collection</p>
                 </div>
 
@@ -144,38 +164,7 @@ export default function ShopPage({ searchParams }) {
             ) : (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10">
                     {products.map((product) => (
-                        <Link href={`/product/${product.slug}`} key={product._id} className="group">
-                            <div className="relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden mb-4 border border-gray-100">
-                                {product.images?.[0] && (
-                                    <Image
-                                        src={product.images[0]}
-                                        fill
-                                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                                        alt={product.name}
-                                        sizes="(max-width: 768px) 50vw, 25vw"
-                                    />
-                                )}
-                                {product.pricing.discountLabel && (
-                                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-wider">
-                                        {product.pricing.discountLabel}
-                                    </span>
-                                )}
-                                {/* Quick Action - Add to Cart (Optional) */}
-                                <div className="absolute bottom-4 right-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                                    <button className="bg-white p-3 rounded-full shadow-lg hover:bg-black hover:text-white transition-colors">
-                                        <ShoppingBag size={18} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <h3 className="font-bold text-gray-900 group-hover:underline decoration-1 underline-offset-4 truncate">{product.name}</h3>
-                            <div className="mt-1 flex items-center gap-2">
-                                <span className="text-sm font-medium text-gray-900">Rs. {product.pricing.salePrice.toLocaleString()}</span>
-                                {product.pricing.salePrice < product.pricing.originalPrice && (
-                                    <span className="text-xs text-gray-400 line-through">Rs. {product.pricing.originalPrice.toLocaleString()}</span>
-                                )}
-                            </div>
-                        </Link>
+                        <ProductCard key={product._id} product={product} />
                     ))}
                 </div>
             )}
