@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, User } from "lucide-react";
-import { addReview, getReviews } from "@/app/lib/review-actions"; // Need to ensure getReviews is server action or called here
+import { addReview, getReviews, checkReviewEligibility } from "@/app/lib/review-actions"; // Need to ensure getReviews is server action or called here
 // Actually getReviews is best called in parent server component, but for client interactivity (loading more etc), 
 // we can call it here or pass initial reviews.
 // For simplicity, let's fetch on mount.
@@ -19,10 +19,19 @@ export default function ProductReviews({ productId }) {
     const [submitting, setSubmitting] = useState(false);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
+    const [canReview, setCanReview] = useState(false);
 
     useEffect(() => {
         fetchReviews();
-    }, [productId]);
+        if (session?.user) {
+            checkEligibility();
+        }
+    }, [productId, session]);
+
+    async function checkEligibility() {
+        const eligible = await checkReviewEligibility(productId);
+        setCanReview(eligible);
+    }
 
     async function fetchReviews() {
         try {
@@ -83,40 +92,47 @@ export default function ProductReviews({ productId }) {
                     <div className="bg-white border p-6 rounded-2xl shadow-sm">
                         <h3 className="font-bold text-lg mb-4">Write a Review</h3>
                         {session ? (
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Rating</label>
-                                    <div className="flex gap-2">
-                                        {[1, 2, 3, 4, 5].map(star => (
-                                            <button
-                                                key={star}
-                                                type="button"
-                                                onClick={() => setRating(star)}
-                                                className={`transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
-                                            >
-                                                <Star size={24} fill="currentColor" />
-                                            </button>
-                                        ))}
+                            canReview ? (
+                                <form onSubmit={handleSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Rating</label>
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3, 4, 5].map(star => (
+                                                <button
+                                                    key={star}
+                                                    type="button"
+                                                    onClick={() => setRating(star)}
+                                                    className={`transition-transform hover:scale-110 ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
+                                                >
+                                                    <Star size={24} fill="currentColor" />
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
+                                    <div>
+                                        <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Review</label>
+                                        <textarea
+                                            value={comment}
+                                            onChange={e => setComment(e.target.value)}
+                                            rows={4}
+                                            className="w-full bg-gray-50 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-black outline-none"
+                                            placeholder="Share your experience..."
+                                            required
+                                        ></textarea>
+                                    </div>
+                                    <button
+                                        disabled={submitting}
+                                        className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 disabled:opacity-50"
+                                    >
+                                        {submitting ? "Submitting..." : "Post Review"}
+                                    </button>
+                                </form>
+                            ) : (
+                                <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                    <p className="text-gray-500 text-sm mb-2">Verified Purchase Required</p>
+                                    <p className="text-xs text-gray-400">You must have purchased and received this item to leave a review.</p>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-2">Review</label>
-                                    <textarea
-                                        value={comment}
-                                        onChange={e => setComment(e.target.value)}
-                                        rows={4}
-                                        className="w-full bg-gray-50 border rounded-xl p-3 text-sm focus:ring-2 focus:ring-black outline-none"
-                                        placeholder="Share your experience..."
-                                        required
-                                    ></textarea>
-                                </div>
-                                <button
-                                    disabled={submitting}
-                                    className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 disabled:opacity-50"
-                                >
-                                    {submitting ? "Submitting..." : "Post Review"}
-                                </button>
-                            </form>
+                            )
                         ) : (
                             <div className="text-center py-4">
                                 <p className="text-sm text-gray-500 mb-4">Please login to write a review.</p>

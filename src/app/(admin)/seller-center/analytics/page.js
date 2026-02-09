@@ -8,8 +8,8 @@ export default async function AnalyticsPage() {
     const ordersData = await Order.find({}).sort({ createdAt: 1 }).lean();
 
     // Serialize
+    // Serialize - strictly pick fields to avoid Buffer/ObjectId serialization issues
     const orders = ordersData.map(order => ({
-        ...order,
         _id: order._id.toString(),
         createdAt: order.createdAt.toISOString(),
         totalAmount: order.totalAmount || 0,
