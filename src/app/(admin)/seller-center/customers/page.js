@@ -4,8 +4,8 @@ import CustomersTable from "@/components/admin/CustomersTable";
 
 export default async function CustomersPage() {
     await connectDB();
-    // Fetch users (lean for performance)
-    const users = await User.find({}).sort({ createdAt: -1 }).lean();
+    // Fetch users (lean for performance) - Exclude admins
+    const users = await User.find({ role: { $ne: 'admin' } }).sort({ createdAt: -1 }).lean();
 
     // Serialize
     const serializedUsers = users.map(user => ({

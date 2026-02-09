@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import connectDB from "@/app/lib/config/db";
 import Review from "@/app/lib/model/Review";
 import Product from "@/app/lib/model/Product";
+import Order from "@/app/lib/model/Order";
 import { revalidatePath } from "next/cache";
 
 export async function addReview(productId, rating, comment) {
@@ -17,7 +18,18 @@ export async function addReview(productId, rating, comment) {
 
         await connectDB();
 
-        // Check if user already reviewed
+        // 1. Check for Verified Purchase (Delivered Order)
+        const hasPurchased = await Order.findOne({
+            user: session.user.id,
+            "items.product": productId,
+            status: "Delivered"
+        });
+
+        if (!hasPurchased) {
+            return { error: "Verified Purchase Required: You must have bought and received this item to review it." };
+        }
+
+        // 2. Check if user already reviewed
         const existing = await Review.findOne({ product: productId, user: session.user.id });
         if (existing) return { error: "You have already reviewed this product" };
 
@@ -66,4 +78,20 @@ export async function getReviews(productId) {
         .lean();
 
     return JSON.parse(JSON.stringify(reviews));
+}
+
+export async function checkReviewEligibility(productId) {
+    const session = await auth();
+    if (!session?.user) return false;
+
+    await connectDB();
+
+    // Check for Delivered Order
+    const hasPurchased = await Order.findOne({
+        user: session.user.id,
+        "items.product": productId,
+        status: "Delivered"
+    });
+
+    return !!hasPurchased;
 }
