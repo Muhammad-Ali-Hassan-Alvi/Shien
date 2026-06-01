@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Home, Grid, Sparkles, ShoppingCart, User } from "lucide-react";
 import { useCartStore } from "@/store/useCartStore";
+import { useUIStore } from "@/store/useUIStore";
+import { productsLink } from "@/app/lib/navLinks";
 import { useEffect, useState } from "react";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { items } = useCartStore();
+  const { openCart } = useUIStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -16,40 +20,53 @@ export default function BottomNav() {
   }, []);
 
   const isActive = (path) => pathname === path;
+  const isProductsActive = pathname === "/products";
+  const isNewActive = pathname === "/products" && searchParams.get("sort") === "new";
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 md:hidden pb-safe">
       <div className="flex justify-around items-center h-14">
-        
+
         <Link href="/" className={`flex flex-col items-center gap-1 ${isActive('/') ? 'text-black' : 'text-gray-400'}`}>
           <Home size={22} strokeWidth={isActive('/') ? 2.5 : 2} />
           <span className="text-[10px] font-medium">Shop</span>
         </Link>
 
-        <Link href="/categories" className={`flex flex-col items-center gap-1 ${isActive('/categories') ? 'text-black' : 'text-gray-400'}`}>
-          <Grid size={22} strokeWidth={isActive('/categories') ? 2.5 : 2} />
+        <Link
+          href={productsLink()}
+          className={`flex flex-col items-center gap-1 ${isProductsActive && !isNewActive ? 'text-black' : 'text-gray-400'}`}
+        >
+          <Grid size={22} strokeWidth={isProductsActive && !isNewActive ? 2.5 : 2} />
           <span className="text-[10px] font-medium">Category</span>
         </Link>
-        
-        <Link href="/new" className={`flex flex-col items-center gap-1 ${isActive('/new') ? 'text-black' : 'text-gray-400'}`}>
-          <Sparkles size={22} strokeWidth={isActive('/new') ? 2.5 : 2} />
+
+        <Link
+          href={productsLink({ sort: "new" })}
+          className={`flex flex-col items-center gap-1 ${isNewActive ? 'text-black' : 'text-gray-400'}`}
+        >
+          <Sparkles size={22} strokeWidth={isNewActive ? 2.5 : 2} />
           <span className="text-[10px] font-medium">New</span>
         </Link>
 
-        <Link href="/cart" className={`flex flex-col items-center gap-1 relative ${isActive('/cart') ? 'text-black' : 'text-gray-400'}`}>
-           <div className="relative">
-              <ShoppingCart size={22} strokeWidth={isActive('/cart') ? 2.5 : 2} />
-              {mounted && items.length > 0 && (
-                 <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-red-600 text-white text-[8px] font-bold rounded-full">
-                   {items.length}
-                 </span>
-              )}
-           </div>
+        <button
+          type="button"
+          onClick={openCart}
+          className="flex flex-col items-center gap-1 relative text-gray-400 hover:text-black"
+          aria-label="Open cart"
+        >
+          <div className="relative">
+            <ShoppingCart size={22} strokeWidth={2} />
+            {mounted && items.length > 0 && (
+              <span className="absolute -top-1 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-red-600 text-white text-[8px] font-bold rounded-full">
+                {items.length}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] font-medium">Cart</span>
-        </Link>
+        </button>
 
-        <Link href="/profile" className={`flex flex-col items-center gap-1 ${isActive('/profile') ? 'text-black' : 'text-gray-400'}`}>
-          <User size={22} strokeWidth={isActive('/profile') ? 2.5 : 2} />
+        <Link href="/profile" className={`flex flex-col items-center gap-1 ${pathname.startsWith('/profile') ? 'text-black' : 'text-gray-400'}`}>
+          <User size={22} strokeWidth={pathname.startsWith('/profile') ? 2.5 : 2} />
           <span className="text-[10px] font-medium">Me</span>
         </Link>
 

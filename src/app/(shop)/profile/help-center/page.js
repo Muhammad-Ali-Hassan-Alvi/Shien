@@ -5,6 +5,7 @@ import Ticket from "@/app/lib/model/Ticket";
 import Link from "next/link";
 import { Plus, MessageSquare, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
+import StatusBadge, { StatusAccentBar } from "@/components/ui/StatusBadge";
 
 async function getTickets() {
     const session = await auth();
@@ -58,21 +59,13 @@ export default async function HelpCenterPage() {
                             href={`/profile/help-center/${ticket._id}`}
                             className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all hover:border-gray-200 group relative overflow-hidden"
                         >
-                            <div className={`absolute top-0 left-0 w-1 h-full ${ticket.status === 'Open' ? 'bg-green-500' :
-                                ticket.status === 'In Progress' ? 'bg-blue-500' :
-                                    ticket.status === 'Resolved' ? 'bg-gray-800' : 'bg-gray-300'
-                                }`}></div>
+                            <StatusAccentBar status={ticket.status} />
 
                             <div className="flex justify-between items-start mb-2 pl-4">
                                 <h3 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                                     {ticket.subject}
                                 </h3>
-                                <span className={`text-xs font-bold px-3 py-1 rounded-full border uppercase tracking-wider ${ticket.status === 'Open' ? 'bg-green-50 text-green-700 border-green-100' :
-                                    ticket.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                        ticket.status === 'Resolved' ? 'bg-gray-100 text-gray-800 border-gray-200' : 'bg-gray-50 text-gray-500 border-gray-100'
-                                    }`}>
-                                    {ticket.status}
-                                </span>
+                                <StatusBadge status={ticket.status} size="sm" />
                             </div>
 
                             <div className="pl-4 flex items-center gap-6 text-sm text-gray-500 font-medium">

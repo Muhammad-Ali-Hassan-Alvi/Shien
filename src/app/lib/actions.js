@@ -1,78 +1,110 @@
 "use server";
 
-// src/app/lib/actions.js
-// We need to fetch the user to know the role before signing in? 
-// Or sign in and then get the session? 
-// The signIn function runs authorize. authorize returns the user. 
-// Standard NextAuth v5 signIn doesn't easily return the user object to the caller if redirect is false, 
-// it returns a result object or throws.
-// Let's modify the flow:
-
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import User from "./model/User";
+import Admin from "./model/Admin";
 import connectDB from "./config/db";
+import { auth } from "@/auth";
+import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
+
+function parseCredentials(prevState, formData) {
+    if (formData instanceof FormData) {
+        return {
+            identifier:
+                formData.get("identifier") ||
+                formData.get("email") ||
+                formData.get("phone"),
+            password: formData.get("password"),
+            isAdminLogin: formData.get("isAdminLogin") === "true",
+        };
+    }
+    // Legacy: authenticate(identifier, password) from login page
+    if (typeof prevState === "string" && typeof formData === "string") {
+        return {
+            identifier: prevState,
+            password: formData,
+            isAdminLogin: false,
+        };
+    }
+    return { identifier: null, password: null, isAdminLogin: false };
+}
+
+function normalizeIdentifier(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (raw.includes("@")) return raw.toLowerCase();
+    return raw.replace(/\s+/g, "");
+}
 
 export async function authenticate(prevState, formData) {
     try {
-        let identifier, password, isAdminLogin;
+        const { identifier, password, isAdminLogin } = parseCredentials(prevState, formData);
+        const normalizedId = normalizeIdentifier(identifier);
 
-        if (formData instanceof FormData) {
-            identifier = formData.get('identifier') || formData.get('email');
-            password = formData.get('password');
-            isAdminLogin = formData.get('isAdminLogin');
-        } else {
-            // Fallback for direct calls (not recommended but keeping backward compat locally)
-            // usage: authenticate(identifier, password)
-            identifier = prevState;
-            password = formData;
+        if (!normalizedId || !password) {
+            return { error: "Please enter your email/phone and password." };
         }
 
-        if (!identifier || !password) return { error: "Missing fields" };
-
-        await signIn("credentials", {
-            identifier,
-            password,
-            isAdminLogin,
+        const result = await signIn("credentials", {
+            identifier: normalizedId,
+            password: String(password),
+            isAdminLogin: isAdminLogin ? "true" : "false",
             redirect: false,
         });
 
-        // After successful signIn (since redirect: false), we need to determine where to redirect
-        // However, middleware or client should handle redirection based on session.
-        // But the previous code wanted to return role.
+        // NextAuth v5: failed login returns { ok: false, error: "..." } without throwing
+        if (result?.error || result?.ok === false) {
+            return {
+                error:
+                    result.error === "CredentialsSignin"
+                        ? "Invalid email/phone or password."
+                        : result.error || "Login failed. Please try again.",
+            };
+        }
 
         await connectDB();
-        // Check for email or phone
-        let user;
-        if (isAdminLogin === 'true') {
-            // Import Admin model dynamically or ensure it is imported
-            const Admin = require("./model/Admin").default;
-            user = await Admin.findOne({ email: identifier });
-        } else {
-            user = await User.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
-        }
 
-        const role = user?.role || (isAdminLogin === 'true' ? 'admin' : 'user');
+        let role = "user";
+        if (isAdminLogin) {
+            const admin = await Admin.findOne({ email: normalizedId }).lean();
+            role = admin?.role || "admin";
+        } else {
+            const user = await User.findOne({
+                $or: [{ email: normalizedId }, { phone: normalizedId }],
+            }).lean();
+            role = user?.role || user?.userType || "user";
+        }
 
         return { success: true, role };
-
     } catch (error) {
         if (error instanceof AuthError) {
-            switch (error.type) {
-                case "CredentialsSignin":
-                    return { error: "Invalid credentials." };
-                default:
-                    return { error: "Something went wrong." };
-            }
-        }
-        // If it's a "Digest" error (NextJs redirect), rethrow
-        // But here we used redirect: false, so it shouldn't redirect throw.
-        // Actually, signIn with redirect:false might still throw if something else fails? 
-        // No, it returns { error, status, ok, url } in client, but on server actions?
-        // Server-side signIn with redirect:false calls the provider. If authorize throws, it throws CallbackRouteError.
+            const message =
+                error.cause?.message ||
+                (error.type === "CredentialsSignin"
+                    ? "Invalid email/phone or password."
+                    : "Something went wrong.");
 
-        // If valid error object
-        if (error.message) {
+            if (message.includes("Admin not found")) {
+                return {
+                    error:
+                        "No admin account with this email. Use /admin/login or run: node scripts/create_admin.mjs",
+                };
+            }
+            if (message.includes("User not found")) {
+                return {
+                    error: "No account found with this email or phone. Please register first.",
+                };
+            }
+            if (message.includes("Invalid credentials")) {
+                return { error: "Invalid email/phone or password." };
+            }
+
+            return { error: message };
+        }
+
+        if (error?.message) {
             return { error: error.message };
         }
 
@@ -80,19 +112,11 @@ export async function authenticate(prevState, formData) {
     }
 }
 
-
-import { auth } from "@/auth";
-import bcrypt from "bcryptjs";
-import { revalidatePath } from "next/cache";
-
-// -- Profile & Settings Actions --
-
 export async function updateProfile(formData) {
     try {
         const session = await auth();
         if (!session?.user?.id) return { error: "Not authenticated" };
 
-        // Ensure ID is string
         const userId = session.user.id.toString();
         if (userId === "[object Object]") {
             return { error: "Session corrupted. Please Logout and Login again." };
@@ -103,7 +127,6 @@ export async function updateProfile(formData) {
 
         await connectDB();
 
-        // Check if email is already taken by another user
         if (email) {
             const existing = await User.findOne({ email, _id: { $ne: userId } });
             if (existing) return { error: "Email already in use" };
@@ -111,7 +134,7 @@ export async function updateProfile(formData) {
 
         await User.findByIdAndUpdate(userId, {
             name,
-            email
+            email,
         });
 
         revalidatePath("/seller-center/settings");
@@ -137,14 +160,11 @@ export async function changePassword(currentPassword, newPassword) {
 
         if (!user || !user.password) return { error: "User not found" };
 
-        // Verify current password
         const isMatch = await bcrypt.compare(currentPassword, user.password);
         if (!isMatch) return { error: "Incorrect current password" };
 
-        // Hash new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // Update
         user.password = hashedPassword;
         await user.save();
 

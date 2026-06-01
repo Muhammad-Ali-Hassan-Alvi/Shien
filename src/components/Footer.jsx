@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Facebook, Instagram, Twitter, Youtube, Linkedin, ArrowRight } from "lucide-react";
+import { Facebook, Instagram, Twitter, Youtube } from "lucide-react";
+import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
+    const year = new Date().getFullYear();
+
     return (
         <footer className="relative bg-white/60 backdrop-blur-xl border-t border-white/40 pt-24 pb-12 overflow-hidden">
 
@@ -24,16 +27,7 @@ export default function Footer() {
                             Join our newsletter to receive exclusive offers, new collection alerts, and style inspiration directly to your inbox.
                         </p>
 
-                        <form className="flex group">
-                            <input
-                                type="email"
-                                placeholder="Enter your email"
-                                className="bg-transparent border-b border-gray-300 py-3 pr-4 w-full outline-none focus:border-black transition-colors placeholder:text-gray-400 group-hover:border-gray-400"
-                            />
-                            <button className="border-b border-gray-300 py-3 pl-4 hover:text-indigo-600 transition-colors group-hover:border-gray-400">
-                                <ArrowRight size={20} />
-                            </button>
-                        </form>
+                        <NewsletterForm />
                     </div>
 
                     <div className="flex gap-4">
@@ -89,7 +83,7 @@ export default function Footer() {
 
                 {/* Bottom */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-gray-200">
-                    <p className="text-xs text-gray-400 font-medium">© 2025 iMART. All rights reserved.</p>
+                    <p className="text-xs text-gray-400 font-medium">© {year} iMART. All rights reserved.</p>
                     <div className="flex items-center gap-6 opacity-60 grayscale hover:grayscale-0 transition-all">
                         {/* Mock Payment Badges - Text or SVGs */}
                         <span className="font-black italic text-lg text-gray-800">VISA</span>

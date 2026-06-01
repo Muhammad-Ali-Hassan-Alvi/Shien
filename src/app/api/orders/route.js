@@ -1,9 +1,11 @@
 import connectDB from "@/app/lib/config/db";
 import Order from "@/app/lib/model/Order";
 import User from "@/app/lib/model/User";
-import Product from "@/app/lib/model/Product"; // Ensure imported
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { OrderService } from "@/services/OrderService";
+import { notifyOrderPlaced } from "@/app/lib/orderNotifications";
+import { notifyOrderStatusUpdate } from "@/lib/notificationService";
 
 export async function GET(req) {
     try {
@@ -11,9 +13,7 @@ export async function GET(req) {
         const session = await auth();
 
         let query = {};
-        // If logged in user is admin, show all? Usually yes.
-        // If user, show only theirs.
-        if (session?.user?.role !== 'admin') {
+        if (session?.user?.role !== "admin") {
             if (!session?.user?.id) return NextResponse.json({ orders: [] });
             query = { user: session.user.id };
         }
@@ -43,74 +43,74 @@ export async function POST(req) {
             return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
         }
 
-        let totalAmount = 0;
-        const finalOrderItems = [];
-
-        // Validate and Calculate Total
-        for (const item of items) {
-            // item: { product: ID, quantity, variant }
-            const product = await Product.findById(item.product);
-            if (!product) continue;
-
-            const price = product.pricing.salePrice;
-            const quantity = item.quantity;
-
-            totalAmount += price * quantity;
-
-            finalOrderItems.push({
-                product: product._id,
-                name: product.name,
-                slug: product.slug,
-                image: product.images[0],
-                price: price,
-                quantity: quantity,
-                variant: item.variant
-            });
+        if (paymentMethod && paymentMethod !== "COD") {
+            return NextResponse.json(
+                { error: "Only Cash on Delivery is available right now. Online payment coming soon." },
+                { status: 400 }
+            );
         }
 
-        if (finalOrderItems.length === 0) {
-            return NextResponse.json({ error: "No valid products found" }, { status: 400 });
-        }
+        const method = "COD";
+        let emailStatus = { customerEmailSent: false, customerEmailReason: null, recipient: null };
 
-        // 1. Create Order
-        const newOrder = await Order.create({
-            user: session.user.id,
-            items: finalOrderItems,
+        const newOrder = await OrderService.createOrder(session.user.id, {
+            items,
             shippingInfo,
-            paymentMethod,
-            totalAmount,
-            status: "Pending"
+            paymentMethod: method,
         });
 
-        // 2. Update User Address (Upsert logic simplified)
+        let userRecord = null;
         try {
-            const user = await User.findById(session.user.id);
-            if (user) {
-                const addressValues = Object.values(shippingInfo).join('').toLowerCase();
-                // Simple check if this exact address exists to avoid duplicates
-                // This is a naive check but works for now
-                const exists = user.addresses.some(a =>
-                    a.address === shippingInfo.address && a.city === shippingInfo.city
+            userRecord = await User.findById(session.user.id);
+            if (userRecord) {
+                const exists = userRecord.addresses?.some(
+                    (a) => a.address === shippingInfo.address && a.city === shippingInfo.city
                 );
-
                 if (!exists) {
-                    user.addresses.push({
+                    userRecord.addresses.push({
                         fullName: shippingInfo.fullName,
                         phone: shippingInfo.phone,
                         address: shippingInfo.address,
                         city: shippingInfo.city,
-                        isDefault: user.addresses.length === 0
+                        isDefault: userRecord.addresses.length === 0,
                     });
-                    await user.save();
+                    await userRecord.save();
                 }
             }
         } catch (e) {
             console.error("Address save failed", e);
-            // Non-critical
         }
 
-        return NextResponse.json({ success: true, orderId: newOrder._id }, { status: 201 });
+        if (method === "COD") {
+            try {
+                const emailResult = await notifyOrderPlaced({
+                    order: newOrder,
+                    userId: session.user.id,
+                    shippingInfo,
+                    sessionEmail: session.user.email,
+                });
+                emailStatus = emailResult;
+            } catch (notifyErr) {
+                console.error("Order notifications failed:", notifyErr);
+            }
+        }
 
+        if (process.env.NODE_ENV !== "production") {
+            console.info("[orders] New order created:", String(newOrder._id).slice(-8));
+        }
+
+        return NextResponse.json(
+            {
+                success: true,
+                orderId: newOrder._id,
+                paymentMethod: method,
+                requiresPayment: method === "GOPAYFAST",
+                emailSent: emailStatus.customerEmailSent,
+                emailTo: emailStatus.recipient || session.user.email || null,
+                emailError: emailStatus.customerEmailReason,
+            },
+            { status: 201 }
+        );
     } catch (error) {
         console.error("Order Creation Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -120,17 +120,36 @@ export async function POST(req) {
 export async function PUT(req) {
     try {
         await connectDB();
+        const session = await auth();
+        if (session?.user?.role !== "admin") {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { orderId, status } = await req.json();
 
         if (!orderId || !status) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
+        const existingOrder = await Order.findById(orderId);
+        if (!existingOrder) {
+            return NextResponse.json({ error: "Order not found" }, { status: 404 });
+        }
+
+        const previousStatus = existingOrder.status;
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
             { status },
             { new: true }
         );
+
+        if (updatedOrder) {
+            try {
+                await notifyOrderStatusUpdate(updatedOrder, status, { previousStatus });
+            } catch (e) {
+                console.error("Order status notification failed:", e);
+            }
+        }
 
         return NextResponse.json({ success: true, order: updatedOrder });
     } catch (error) {

@@ -16,9 +16,9 @@ export default async function CustomersPage() {
     }));
 
     return (
-        <div className="max-w-6xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-3xl font-playfair font-bold mb-2">Customers</h1>
+        <div className="w-full max-w-6xl mx-auto min-w-0">
+            <div className="mb-6 sm:mb-8">
+                <h1 className="text-2xl sm:text-3xl font-playfair font-bold mb-2">Customers</h1>
                 <p className="text-gray-500">Manage your store's customer base.</p>
             </div>
             <CustomersTable customers={serializedUsers} />

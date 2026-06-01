@@ -16,11 +16,9 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         const formData = new FormData(e.currentTarget);
-        const identifier = formData.get("identifier");
-        const password = formData.get("password");
 
         try {
-            const result = await authenticate(identifier, password);
+            const result = await authenticate(null, formData);
             if (result?.error) {
                 toast.error(result.error);
             } else {
@@ -32,7 +30,6 @@ export default function LoginPage() {
                 // Small delay to ensure cookie propagation before redirect
                 setTimeout(() => {
                     const target = result.role === 'admin' ? '/seller-center' : '/';
-                    console.log(`Redirecting to: ${target} (Role: ${result.role})`);
                     router.push(target);
                 }, 500);
             }
@@ -55,7 +52,7 @@ export default function LoginPage() {
                         <input
                             name="identifier"
                             type="text"
-                            placeholder="admin@admin.com or 03001234567"
+                            placeholder="you@email.com or 03001234567"
                             required
                             className="w-full border border-gray-300 p-3 rounded-lg outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
                         />
@@ -79,6 +76,15 @@ export default function LoginPage() {
                         </div>
                     </div>
 
+                    <div className="flex justify-end">
+                        <Link
+                            href="/auth/forgot-password"
+                            className="text-sm text-gray-500 hover:text-black underline"
+                        >
+                            Forgot password?
+                        </Link>
+                    </div>
+
                     <button
                         type="submit"
                         disabled={loading}
@@ -88,7 +94,13 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <p className="mt-8 text-center text-sm text-gray-500">
+                <p className="mt-6 text-center text-xs text-gray-400">
+                    Admin?{" "}
+                    <Link href="/admin/login" className="font-bold text-gray-600 underline hover:text-black">
+                        Sign in at Admin Portal
+                    </Link>
+                </p>
+                <p className="mt-4 text-center text-sm text-gray-500">
                     New here? <Link href="/auth/register" className="font-bold text-black underline">Create Account</Link>
                 </p>
             </div>

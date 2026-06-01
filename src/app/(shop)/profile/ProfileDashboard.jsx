@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package, Clock, CheckCircle, Truck, User, Settings, LogOut, Key, Search } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { updateProfile, changePassword } from "@/app/lib/actions";
+import { createTicket } from "@/app/lib/help-actions";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 // Helper for status colors
 const getStatusColor = (status) => {
@@ -18,9 +20,13 @@ const getStatusColor = (status) => {
     }
 };
 
-export default function ProfileDashboard({ user, orders }) {
-    const [activeTab, setActiveTab] = useState("overview");
+export default function ProfileDashboard({ user, orders, initialTab = "overview" }) {
+    const [activeTab, setActiveTab] = useState(initialTab);
     const [orderFilter, setOrderFilter] = useState("ALL");
+
+    useEffect(() => {
+        setActiveTab(initialTab);
+    }, [initialTab]);
 
     // Stats
     const pendingCount = orders.filter(o => ['Pending', 'Confirmed', 'Processing'].includes(o.status)).length;
@@ -200,6 +206,9 @@ export default function ProfileDashboard({ user, orders }) {
                                                     </div>
                                                 ))}
                                             </div>
+                                            {order.status === "Delivered" && (
+                                                <RequestReturnButton order={order} />
+                                            )}
                                         </div>
                                     ))
                                 )}
@@ -218,6 +227,49 @@ export default function ProfileDashboard({ user, orders }) {
                 </div>
             </div>
         </div>
+    );
+}
+
+function RequestReturnButton({ order }) {
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const shortId = order._id.toString().slice(-8).toUpperCase();
+
+    const handleReturn = async () => {
+        setLoading(true);
+        const formData = new FormData();
+        formData.set("subject", `Return request for order #${shortId}`);
+        formData.set("orderId", order._id.toString());
+        formData.set(
+            "message",
+            "I would like to request a return for this order. Please advise on next steps."
+        );
+        formData.set("priority", "Medium");
+
+        const res = await createTicket(null, formData);
+        setLoading(false);
+
+        if (res?.error) {
+            toast.error(res.error);
+            return;
+        }
+        toast.success("Return request submitted");
+        if (res.ticketId) {
+            router.push(`/profile/help-center/${res.ticketId}`);
+        } else {
+            router.push("/profile/help-center");
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleReturn}
+            disabled={loading}
+            className="mt-4 text-sm font-bold text-black underline hover:no-underline disabled:opacity-50"
+        >
+            {loading ? "Submitting…" : "Request return"}
+        </button>
     );
 }
 

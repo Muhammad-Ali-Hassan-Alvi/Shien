@@ -90,7 +90,10 @@ export default function CartDrawer() {
                                 <Minus size={14} />
                              </button>
                              <span className="text-sm w-4 text-center">{item.quantity}</span>
-                             <button onClick={() => updateQuantity(item._id, item.variant, item.quantity + 1)}>
+                             <button
+                                onClick={() => updateQuantity(item._id, item.variant, item.quantity + 1)}
+                                disabled={item.variant?.stock > 0 && item.quantity >= item.variant.stock}
+                             >
                                 <Plus size={14} />
                              </button>
                         </div>

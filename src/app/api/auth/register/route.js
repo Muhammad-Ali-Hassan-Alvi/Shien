@@ -1,5 +1,6 @@
 import connectDB from "@/app/lib/config/db";
 import User from "@/app/lib/model/User";
+import { notifyAllAdmins } from "@/lib/notificationService";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
@@ -34,6 +35,16 @@ export async function POST(req) {
       role: 'user', // Default
       wishlist: []
     });
+
+    try {
+      await notifyAllAdmins({
+        type: "NewUser",
+        message: `New customer registered: ${name}`,
+        link: "/seller-center/customers",
+      });
+    } catch (e) {
+      console.error("Admin new-user notification failed:", e);
+    }
 
     return NextResponse.json({ message: "User registered successfully" }, { status: 201 });
   } catch (error) {

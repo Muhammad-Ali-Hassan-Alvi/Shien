@@ -1,23 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
-import { MessageCircle, CheckCircle, Clock, Send } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
 import Loader from "@/components/admin/Loader";
 import Image from "next/image";
+import { useSocket } from "@/context/SocketProvider";
 
 export default function QuestionsPage() {
+    const { socket } = useSocket();
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [replyingTo, setReplyingTo] = useState(null);
     const [replyText, setReplyText] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
 
-    useEffect(() => {
-        fetchQuestions();
-    }, []);
-
-    const fetchQuestions = async () => {
+    const fetchQuestions = useCallback(async () => {
         try {
             const res = await fetch("/api/admin/questions");
             const data = await res.json();
@@ -30,7 +28,41 @@ export default function QuestionsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchQuestions();
+    }, [fetchQuestions]);
+
+    useEffect(() => {
+        if (!socket) return;
+
+        const onNew = (q) => {
+            setQuestions((prev) => {
+                if (prev.some((x) => x._id === q._id)) return prev;
+                toast("New customer question!", { icon: "❓" });
+                return [q, ...prev];
+            });
+        };
+
+        const onUpdated = (q) => {
+            setQuestions((prev) => {
+                const idx = prev.findIndex((x) => x._id === q._id);
+                if (idx === -1) return prev;
+                const next = [...prev];
+                next[idx] = { ...next[idx], ...q };
+                return next;
+            });
+        };
+
+        socket.on("question:new", onNew);
+        socket.on("question:updated", onUpdated);
+
+        return () => {
+            socket.off("question:new", onNew);
+            socket.off("question:updated", onUpdated);
+        };
+    }, [socket]);
 
     const handleReply = async (id) => {
         if (!replyText.trim()) return toast.error("Reply cannot be empty");
@@ -50,7 +82,13 @@ export default function QuestionsPage() {
                 toast.success("Reply sent & User Notified!", { id: toastId });
                 setReplyingTo(null);
                 setReplyText("");
-                fetchQuestions();
+                if (data.question) {
+                    setQuestions((prev) =>
+                        prev.map((q) => (q._id === data.question._id ? { ...q, ...data.question } : q))
+                    );
+                } else {
+                    fetchQuestions();
+                }
             } else {
                 toast.error(data.error || "Failed", { id: toastId });
             }

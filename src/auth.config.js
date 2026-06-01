@@ -46,6 +46,8 @@ export const authConfig = {
         });
 
         token.role = role;
+        if (user.email) token.email = user.email;
+        if (user.name) token.name = user.name;
       }
       return token;
     },
@@ -53,6 +55,8 @@ export const authConfig = {
       if (token) {
         session.user.id = token.id;
         session.user.role = token.role;
+        if (token.email) session.user.email = token.email;
+        if (token.name) session.user.name = token.name;
       }
       return session;
     },

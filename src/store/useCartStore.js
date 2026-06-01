@@ -6,9 +6,10 @@ export const useCartStore = create(
         (set, get) => ({
             items: [],
 
-            addItem: (product, variant) => {
+            addItem: (product, variant, quantity = 1) => {
+                const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+                const maxStock = variant?.stock > 0 ? variant.stock : null;
                 const { items } = get();
-                // Check if item with same ID and Variant exists
                 const existingItemIndex = items.findIndex(
                     (item) =>
                         item._id === product._id &&
@@ -18,15 +19,18 @@ export const useCartStore = create(
 
                 if (existingItemIndex > -1) {
                     const updatedItems = [...items];
-                    updatedItems[existingItemIndex].quantity += 1;
+                    let newQty = updatedItems[existingItemIndex].quantity + qty;
+                    if (maxStock) newQty = Math.min(newQty, maxStock);
+                    updatedItems[existingItemIndex].quantity = newQty;
                     set({ items: updatedItems });
                 } else {
+                    const initialQty = maxStock ? Math.min(qty, maxStock) : qty;
                     set({
                         items: [...items, {
                             ...product,
                             variant,
-                            quantity: 1
-                        }]
+                            quantity: initialQty,
+                        }],
                     });
                 }
             },

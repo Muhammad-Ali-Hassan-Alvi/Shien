@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Upload, ArrowLeft } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -216,10 +217,15 @@ export default function EditProductPage() {
 
                     <div>
                         <label className="block text-sm font-bold mb-2">Category</label>
-                        <select name="category" value={formData.category} onChange={handleChange} className="w-full border p-3 rounded" required>
-                            <option value="">Select Category</option>
-                            {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                        </select>
+                        <StyledSelect
+                            name="category"
+                            value={formData.category}
+                            onChange={handleChange}
+                            options={categories.map((c) => ({ value: c.name, label: c.name }))}
+                            placeholder="Select Category"
+                            required
+                            aria-label="Product category"
+                        />
                     </div>
 
                     <div>

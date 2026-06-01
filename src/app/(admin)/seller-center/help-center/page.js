@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import connectDB from "@/app/lib/config/db";
 import Ticket from "@/app/lib/model/Ticket";
 import Link from "next/link";
-import { Mail, messageSquare, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 
 async function getAdminTickets() {
@@ -24,16 +24,20 @@ export default async function AdminHelpCenterPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
-                <div className="flex gap-2">
-                    <span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded">Total: {tickets.length}</span>
-                    <span className="text-xs font-bold px-2 py-1 bg-green-50 text-green-700 rounded">Open: {tickets.filter(t => t.status === 'Open').length}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Support Tickets</h1>
+                <div className="flex flex-wrap gap-2">
+                    <span className="text-xs font-bold px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full border border-slate-200">
+                        Total: {tickets.length}
+                    </span>
+                    <span className="text-xs font-bold px-3 py-1.5 bg-emerald-50 text-emerald-800 rounded-full border border-emerald-200">
+                        Open: {tickets.filter((t) => t.status === "Open").length}
+                    </span>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto overflow-y-visible">
+                <div className="admin-table-scroll">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase tracking-wider text-xs">
                             <tr>
@@ -68,21 +72,10 @@ export default async function AdminHelpCenterPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold border ${ticket.status === 'Open' ? 'bg-green-50 text-green-700 border-green-100' :
-                                                ticket.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                                    ticket.status === 'Resolved' ? 'bg-gray-100 text-gray-600 border-gray-200' :
-                                                        'bg-red-50 text-red-700 border-red-100'
-                                                }`}>
-                                                {ticket.status}
-                                            </span>
+                                            <StatusBadge status={ticket.status} size="sm" />
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`flex items-center gap-1 font-bold ${ticket.priority === 'High' ? 'text-red-600' :
-                                                ticket.priority === 'Medium' ? 'text-yellow-600' : 'text-gray-500'
-                                                }`}>
-                                                {ticket.priority === 'High' && <AlertCircle size={14} />}
-                                                {ticket.priority}
-                                            </span>
+                                            <StatusBadge status={ticket.priority} type="priority" size="sm" />
                                         </td>
                                         <td className="px-6 py-4 text-gray-500">
                                             {new Date(ticket.updatedAt).toLocaleDateString()}

@@ -49,7 +49,7 @@ export default function ReviewsPage() {
         <div className="space-y-6">
             <h1 className="text-2xl font-bold text-gray-900">Product Reviews</h1>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto overflow-y-visible admin-table-scroll">
                 <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase">
                         <tr>

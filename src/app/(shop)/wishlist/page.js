@@ -1,11 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { useWishlistStore } from "@/store/useWishlistStore";
+import { fetchAndSetWishlist } from "@/app/lib/wishlistHydrate";
 import ProductCard from "@/components/ProductCard";
 import Link from "next/link";
 
 export default function WishlistPage() {
-    const { wishlist } = useWishlistStore();
+    const { status } = useSession();
+    const { wishlist, setWishlist } = useWishlistStore();
+
+    useEffect(() => {
+        if (status === "authenticated") {
+            fetchAndSetWishlist(setWishlist);
+        }
+    }, [status, setWishlist]);
 
     if (wishlist.length === 0) {
         return (

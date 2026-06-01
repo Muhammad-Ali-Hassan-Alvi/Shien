@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import Pagination from "@/components/admin/Pagination";
 import Loader from "@/components/admin/Loader";
+import OrderStatusSelect from "@/components/admin/OrderStatusSelect";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 const STATUS_OPTS = ["Pending", "Confirmed", "Dispatched", "Delivered", "Cancelled", "Returned"];
 const STATUS_COLORS = {
@@ -93,24 +95,24 @@ export default function OrdersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Orders Management</h1>
                     <p className="text-gray-500 text-sm">Track and manage customer orders ({filteredOrders.length})</p>
                 </div>
-                <select
+                <StyledSelect
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-black"
-                >
-                    <option value="All">All Status</option>
-                    {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                    options={["All", ...STATUS_OPTS]}
+                    variant="default"
+                    className="w-full sm:w-48"
+                    aria-label="Filter by status"
+                />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden p-1">
-                <div className="overflow-x-auto scrollbar-hide">
-                    <table className="w-full text-left min-w-[800px]">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto overflow-y-visible p-1">
+                <div className="admin-table-scroll scrollbar-hide">
+                    <table className="w-full text-left">
                         <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase">
                             <tr>
                                 <th className="px-6 py-4">Order ID</th>
@@ -137,13 +139,17 @@ export default function OrdersPage() {
                                         {new Date(order.createdAt).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <select
-                                            value={order.status}
-                                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                                            className={`px-3 py-1 rounded-full text-xs font-bold border-none outline-none cursor-pointer appearance-none ${STATUS_COLORS[order.status] || 'bg-gray-100'}`}
-                                        >
-                                            {STATUS_OPTS.map(s => <option key={s} value={s}>{s}</option>)}
-                                        </select>
+                                        <OrderStatusSelect
+                                            orderId={order._id}
+                                            initialStatus={order.status}
+                                            onUpdated={(newStatus) =>
+                                                setOrders((prev) =>
+                                                    prev.map((o) =>
+                                                        o._id === order._id ? { ...o, status: newStatus } : o
+                                                    )
+                                                )
+                                            }
+                                        />
                                     </td>
                                 </tr>
                             ))}

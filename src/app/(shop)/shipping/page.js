@@ -47,7 +47,11 @@ export default function ShippingPage() {
 
                 <h3>Track Your Order</h3>
                 <p>
-                    You can track your order status in real-time by visiting your <a href="/profile/orders" className="text-black underline font-bold">Order History</a> page.
+                    You can track your order status in real-time by visiting your{" "}
+                    <a href="/profile/orders" className="text-black underline font-bold">
+                        Order History
+                    </a>{" "}
+                    page (sign in required).
                 </p>
             </div>
         </div>

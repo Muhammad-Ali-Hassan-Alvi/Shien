@@ -1,6 +1,7 @@
 import connectDB from "@/app/lib/config/db";
 import Question from "@/app/lib/model/Question";
-import Notification from "@/app/lib/model/Notification";
+import { createUserNotification } from "@/lib/notificationService";
+import { emitQuestionUpdated } from "@/lib/socket-server";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -37,7 +38,9 @@ export async function PUT(req) {
                 isReplied: true
             },
             { new: true }
-        ).populate("product", "name slug");
+        )
+            .populate("user", "name email image")
+            .populate("product", "name slug images");
 
         if (!updatedQuestion) {
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
@@ -45,13 +48,15 @@ export async function PUT(req) {
 
         // Notify User
         if (updatedQuestion.user) {
-            await Notification.create({
-                user: updatedQuestion.user,
+            await createUserNotification({
+                userId: updatedQuestion.user._id || updatedQuestion.user,
                 type: "QuestionReply",
-                message: `Admin replied on "${updatedQuestion.product?.name || 'Product'}"`,
-                link: `/product/${updatedQuestion.product?.slug || '#'}#qna-${updatedQuestion._id}`
+                message: `Admin replied on "${updatedQuestion.product?.name || "Product"}"`,
+                link: `/product/${updatedQuestion.product?.slug || "#"}#qna-${updatedQuestion._id}`,
             });
         }
+
+        emitQuestionUpdated(updatedQuestion);
 
         return NextResponse.json({ success: true, question: updatedQuestion });
 

@@ -1,34 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
-import { Star, Truck, ShieldCheck, RefreshCcw, Heart, Share2, Plus, Minus, ChevronRight, Copy, MapPin } from "lucide-react";
-import ProductGrid from "./ProductGrid";
+import { Star, Truck, ShieldCheck, RefreshCcw, Heart, ChevronRight, Copy, Plus, Minus } from "lucide-react";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
+import { productsLink } from "@/app/lib/navLinks";
+import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
 import ProductQA from "./ProductQA";
 
-export default function ProductView({ product }) {
+export default function ProductView({ product, relatedProducts = [] }) {
     const { addItem } = useCartStore();
     const { openCart } = useUIStore();
 
     const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0] || {});
+    const [quantity, setQuantity] = useState(1);
     const [activeImage, setActiveImage] = useState(0);
     const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
     const [showZoom, setShowZoom] = useState(false);
 
     const images = product.images?.length > 0 ? product.images : ["/placeholder.jpg"];
 
-    // Mock Data
     const reviewCount = product.reviewCount || 0;
-    const storeName = "iMART PREMIUM";
     const sku = product.sku || "SZ-25061734";
 
+    const maxStock = selectedVariant?.stock > 0 ? selectedVariant.stock : 99;
+    const inStock = selectedVariant?.stock === undefined || selectedVariant?.stock > 0;
+
+    useEffect(() => {
+        setQuantity(1);
+    }, [selectedVariant.color, selectedVariant.size]);
+
+    useEffect(() => {
+        if (quantity > maxStock) setQuantity(maxStock);
+    }, [maxStock, quantity]);
+
     const handleAddToCart = () => {
-        addItem(product, selectedVariant);
+        if (!inStock) {
+            toast.error("This item is out of stock");
+            return;
+        }
+        addItem(product, selectedVariant, quantity);
         openCart();
+    };
+
+    const decreaseQty = () => setQuantity((q) => Math.max(1, q - 1));
+    const increaseQty = () => setQuantity((q) => Math.min(maxStock, q + 1));
+
+    const handleQtyInput = (e) => {
+        const val = parseInt(e.target.value, 10);
+        if (Number.isNaN(val) || val < 1) {
+            setQuantity(1);
+        } else {
+            setQuantity(Math.min(maxStock, val));
+        }
     };
 
     const { salePrice, originalPrice } = product.pricing;
@@ -41,13 +69,7 @@ export default function ProductView({ product }) {
         setZoomPos({ x, y });
     };
 
-    // Mock Recommendations
-    const recommendedProducts = [
-        { _id: 'rec1', name: "Matching Mini Skirt", slug: "skirt", pricing: { salePrice: 1500, originalPrice: 2000 }, images: [images[0]] },
-        { _id: 'rec2', name: "Premium Silk Scarf", slug: "scarf", pricing: { salePrice: 850, originalPrice: 1200 }, images: [images[0]] },
-        { _id: 'rec3', name: "Golden Hoops", slug: "hoops", pricing: { salePrice: 500, originalPrice: 800 }, images: [images[0]] },
-        { _id: 'rec4', name: "Leather Tote Bag", slug: "bag", pricing: { salePrice: 4500, originalPrice: 6000 }, images: [images[0]] },
-    ];
+    const categoryLabel = product.category || "Products";
 
     return (
         <div className="min-h-screen text-gray-800 pb-20">
@@ -55,7 +77,7 @@ export default function ProductView({ product }) {
             {/* Breadcrumbs */}
             <div className="flex items-center gap-2 text-xs text-gray-500 py-4 px-4 md:px-8 max-w-[1600px] mx-auto">
                 <Link href="/" className="hover:text-black">Home</Link> <ChevronRight size={12} />
-                <Link href="/" className="hover:text-black">Women</Link> <ChevronRight size={12} />
+                <Link href={productsLink({ category: product.category })} className="hover:text-black">{categoryLabel}</Link> <ChevronRight size={12} />
                 <span className="text-black font-semibold truncate">{product.name}</span>
             </div>
 
@@ -180,13 +202,58 @@ export default function ProductView({ product }) {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Quantity */}
+                            <div>
+                                <span className="text-sm font-bold block mb-2">Quantity</span>
+                                <div className="flex items-center gap-4">
+                                    <div className="inline-flex items-center border border-gray-200 rounded-full overflow-hidden bg-white shadow-sm">
+                                        <button
+                                            type="button"
+                                            onClick={decreaseQty}
+                                            disabled={quantity <= 1}
+                                            className="w-11 h-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            aria-label="Decrease quantity"
+                                        >
+                                            <Minus size={16} />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={maxStock}
+                                            value={quantity}
+                                            onChange={handleQtyInput}
+                                            className="w-14 h-11 text-center text-sm font-bold border-x border-gray-200 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                            aria-label="Quantity"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={increaseQty}
+                                            disabled={quantity >= maxStock}
+                                            className="w-11 h-11 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            aria-label="Increase quantity"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
+                                    </div>
+                                    {selectedVariant?.stock > 0 && (
+                                        <span className="text-xs text-gray-500">
+                                            {selectedVariant.stock} available
+                                        </span>
+                                    )}
+                                    {!inStock && (
+                                        <span className="text-xs text-red-500 font-semibold">Out of stock</span>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         {/* Actions */}
                         <div className="flex flex-col gap-3 mb-8">
                             <button
                                 onClick={handleAddToCart}
-                                className="w-full bg-black text-white py-4 rounded-full font-bold text-lg hover:bg-gray-900 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                disabled={!inStock}
+                                className="w-full bg-black text-white py-4 rounded-full font-bold text-lg hover:bg-gray-900 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                             >
                                 <ShoppingBag size={20} /> Add to Cart
                             </button>
@@ -217,22 +284,16 @@ export default function ProductView({ product }) {
 
             <ProductQA product={product} />
 
-            {/* Recommended Products */}
-            <div className="max-w-[1600px] mx-auto px-4 md:px-8 mt-24">
-                <h2 className="text-2xl font-playfair font-bold mb-8">You Might Also Like</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    {recommendedProducts.map((p) => (
-                        <Link href={`/product/${p.slug}`} key={p._id} className="group cursor-pointer">
-                            <div className="relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden mb-3">
-                                <Image src={p.images[0]} fill className="object-cover transition-transform duration-500 group-hover:scale-110" alt={p.name} />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
-                            </div>
-                            <h3 className="font-bold text-sm truncate">{p.name}</h3>
-                            <p className="text-sm text-gray-500">Rs. {p.pricing.salePrice}</p>
-                        </Link>
-                    ))}
+            {relatedProducts.length > 0 && (
+                <div className="max-w-[1600px] mx-auto px-4 md:px-8 mt-24">
+                    <h2 className="text-2xl font-playfair font-bold mb-8">You Might Also Like</h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                        {relatedProducts.map((p) => (
+                            <ProductCard key={p._id} product={p} />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
         </div>
     );

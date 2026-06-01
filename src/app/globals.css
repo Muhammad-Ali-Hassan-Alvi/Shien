@@ -59,6 +59,12 @@
     100% { transform: translate(50px, -50px) scale(1.1); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .mesh-blob {
+        animation: none;
+    }
+}
+
 body {
   background: transparent;
   color: var(--foreground);
@@ -78,4 +84,22 @@ body {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* Chrome, Safari and Opera */
+}
+
+/* Admin: horizontal scroll for data tables on small screens — keep vertical overflow visible for dropdowns */
+.admin-table-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-table-scroll table {
+  min-width: 640px;
+}
+
+@media (min-width: 1024px) {
+  .admin-table-scroll table {
+    min-width: 0;
+    width: 100%;
+  }
 }

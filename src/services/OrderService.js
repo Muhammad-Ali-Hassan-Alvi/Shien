@@ -2,6 +2,25 @@ import connectDB from "@/app/lib/config/db";
 import Order from "@/app/lib/model/Order";
 import Product from "@/app/lib/model/Product";
 import mongoose from "mongoose";
+import { notifyAllAdmins } from "@/lib/notificationService";
+
+const LOW_STOCK = 3;
+
+async function checkLowStockAfterOrder(product, variant) {
+    if (variant.stock > 0 && variant.stock <= LOW_STOCK) {
+        await notifyAllAdmins({
+            type: "LowStock",
+            message: `Low stock after order: "${product.name}" (${variant.size}/${variant.color}: ${variant.stock} left)`,
+            link: `/seller-center/products/edit/${product._id}`,
+        });
+    } else if (variant.stock === 0) {
+        await notifyAllAdmins({
+            type: "OutOfStock",
+            message: `"${product.name}" variant ${variant.size}/${variant.color} is out of stock`,
+            link: `/seller-center/products/edit/${product._id}`,
+        });
+    }
+}
 
 export class OrderService {
     static async createOrder(userId, orderData) {
@@ -14,6 +33,8 @@ export class OrderService {
             const { items, shippingInfo, paymentMethod } = orderData;
             let totalAmount = 0;
             const finalItems = [];
+
+            const stockAlerts = [];
 
             for (const item of items) {
                 // Find product with locking is complex in Mongoose without 'for update', 
@@ -40,9 +61,10 @@ export class OrderService {
 
                 // Reduce Stock
                 product.variants[variantIndex].stock -= item.quantity;
-                // Use markModified if needed, but array mutation usually detected
-                // Safer to use $inc via updateOne if concurrency is super high, but save() in transaction is okay here
                 await product.save({ session });
+
+                const updatedVariant = product.variants[variantIndex];
+                stockAlerts.push({ product, variant: { ...updatedVariant } });
 
                 // Calculate Price
                 const price = product.pricing.salePrice;
@@ -51,24 +73,41 @@ export class OrderService {
                 finalItems.push({
                     product: product._id,
                     name: product.name,
-                    image: product.images[0],
+                    slug: product.slug,
+                    image: product.images?.[0] || "",
                     price: price,
                     quantity: item.quantity,
-                    variant: item.variant
+                    variant: item.variant,
                 });
             }
 
-            // Create Order
+            const isOnline = paymentMethod === "GOPAYFAST";
+
             const [order] = await Order.create([{
                 user: userId,
                 items: finalItems,
                 shippingInfo,
                 paymentMethod,
+                paymentStatus: isOnline ? "pending" : "paid",
                 totalAmount,
-                status: 'Pending'
+                status: "Pending",
             }], { session });
 
+            if (isOnline) {
+                order.payfastBasketId = String(order._id);
+                await order.save({ session });
+            }
+
             await session.commitTransaction();
+
+            for (const { product, variant } of stockAlerts) {
+                try {
+                    await checkLowStockAfterOrder(product, variant);
+                } catch (e) {
+                    console.error("Low stock alert failed:", e);
+                }
+            }
+
             return order;
 
         } catch (error) {

@@ -3,11 +3,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send, User, ShieldCheck } from "lucide-react";
-import { replyToTicket, updateTicketStatus } from "@/app/lib/help-actions";
+import { replyToTicket } from "@/app/lib/help-actions";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
-export default function AdminChatInterface({ ticket, mode = 'full' }) {
+export default function AdminChatInterface({ ticket }) {
     const [message, setMessage] = useState("");
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef(null);
@@ -18,8 +18,8 @@ export default function AdminChatInterface({ ticket, mode = 'full' }) {
     };
 
     useEffect(() => {
-        if (mode === 'full') scrollToBottom();
-    }, [ticket.messages, mode]);
+        scrollToBottom();
+    }, [ticket.messages]);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -36,32 +36,6 @@ export default function AdminChatInterface({ ticket, mode = 'full' }) {
         }
         setSending(false);
     };
-
-    const handleStatusChange = async (e) => {
-        const newStatus = e.target.value;
-        const res = await updateTicketStatus(ticket._id, newStatus);
-        if (res.error) {
-            toast.error("Failed to update status");
-        } else {
-            toast.success("Status Updated");
-            router.refresh();
-        }
-    };
-
-    if (mode === 'status-only') {
-        return (
-            <select
-                value={ticket.status}
-                onChange={handleStatusChange}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-black/5"
-            >
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Resolved">Resolved</option>
-                <option value="Closed">Closed</option>
-            </select>
-        );
-    }
 
     return (
         <div className="flex-1 flex flex-col bg-white border border-gray-200 border-t-0 rounded-b-xl overflow-hidden h-full">

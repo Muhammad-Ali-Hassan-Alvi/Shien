@@ -78,8 +78,9 @@ export default function AdminsPage() {
                     <p className="text-gray-500 text-sm mt-1">Manage platform administrators</p>
                 </div>
                 <button
+                    type="button"
                     onClick={() => setShowModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-lg shadow-black/20 font-medium"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-lg shadow-black/20 font-medium"
                 >
                     <Plus size={18} />
                     Add New Admin

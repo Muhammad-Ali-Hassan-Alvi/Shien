@@ -35,12 +35,28 @@ export async function generateMetadata({ params }) {
     }
 
     return {
-        title: `${product.name} | Shein.PK`,
+        title: `${product.name} | iMART`,
         description: product.description,
         openGraph: {
             images: product.images,
         }
     };
+}
+
+async function getRelatedProducts(category, excludeId, limit = 4) {
+    if (!category) return [];
+    await connectDB();
+    const related = await Product.find({
+        category,
+        _id: { $ne: excludeId },
+    })
+        .limit(limit)
+        .lean();
+
+    return related.map((p) => ({
+        ...p,
+        _id: p._id.toString(),
+    }));
 }
 
 export default async function ProductPage({ params }) {
@@ -51,5 +67,11 @@ export default async function ProductPage({ params }) {
         notFound();
     }
 
-    return <ProductView product={product} />;
+    const relatedProducts = await getRelatedProducts(
+        product.category,
+        product._id,
+        4
+    );
+
+    return <ProductView product={product} relatedProducts={relatedProducts} />;
 }

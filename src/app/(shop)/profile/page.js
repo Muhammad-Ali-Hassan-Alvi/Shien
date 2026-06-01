@@ -5,8 +5,12 @@ import { redirect } from "next/navigation";
 import ProfileDashboard from "./ProfileDashboard";
 
 // Server Component
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }) {
     const session = await auth();
+    const resolved = await searchParams;
+    const tab = resolved?.tab;
+    const initialTab =
+        tab === "orders" || tab === "settings" || tab === "overview" ? tab : "overview";
 
     if (!session) {
         redirect("/auth/login");
@@ -32,5 +36,5 @@ export default async function ProfilePage() {
         }))
     }));
 
-    return <ProfileDashboard user={session.user} orders={orders} />;
+    return <ProfileDashboard user={session.user} orders={orders} initialTab={initialTab} />;
 }

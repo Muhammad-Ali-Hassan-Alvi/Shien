@@ -1,7 +1,7 @@
 import connectDB from "@/app/lib/config/db";
-import Hero from "@/app/lib/model/Hero"; // Ensure this matches casing
+import Hero from "@/app/lib/model/Hero";
+import { requireAdmin } from "@/app/lib/requireAdmin";
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 
 export async function GET(req) {
     try {
@@ -15,10 +15,8 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
-        const session = await auth();
-        // if (!session || session.user.role !== "admin") {
-        //     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        // }
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
 
         await connectDB();
         const body = await req.json();

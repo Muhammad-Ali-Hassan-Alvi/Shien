@@ -20,7 +20,8 @@ export async function POST(req) {
         }
 
         // Toggle Logic
-        const index = user.wishlist.indexOf(productId);
+        const idStr = productId.toString();
+        const index = user.wishlist.findIndex((w) => w.toString() === idStr);
         if (index === -1) {
             user.wishlist.push(productId);
         } else {

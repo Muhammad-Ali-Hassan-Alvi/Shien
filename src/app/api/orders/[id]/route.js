@@ -1,43 +1,43 @@
 import connectDB from "@/app/lib/config/db";
 import Order from "@/app/lib/model/Order";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/app/lib/requireAdmin";
+import { notifyOrderStatusUpdate } from "@/lib/notificationService";
 
 export async function PUT(req, { params }) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
-        const { id } = await params; // Note: params might be async in newer Next.js but here likely extracted from context or route. 
-        // Wait, in app directory [id]/route.js, yes. But user didn't ask for [id] folder, 
-        // they asked for one huge file or separate.
-        // I will place this in `src/app/api/orders/[id]/route.js` to be standard.
-
-        // However, since I cannot create folders implicitly safely without knowing, I'll assume I have to make the folder.
-        // I will write this to `src/app/api/orders/[id]/route.js`.
-
+        const { id } = await params;
         const { status } = await req.json();
 
         if (!status) {
             return NextResponse.json({ error: "Status required" }, { status: 400 });
         }
 
-        const order = await Order.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true }
-        );
-
-        if (!order) {
+        const existingOrder = await Order.findById(id);
+        if (!existingOrder) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        return NextResponse.json({ success: true, order });
+        const previousStatus = existingOrder.status;
+        const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
 
+        try {
+            await notifyOrderStatusUpdate(order, status, { previousStatus });
+        } catch (e) {
+            console.error("Order status notification failed:", e);
+        }
+
+        return NextResponse.json({ success: true, order });
     } catch (error) {
         console.error("Order Update Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
 
-export async function GET(req, { params }) {
-    // Optional: Get Single Order
+export async function GET() {
     return NextResponse.json({ message: "Not Implemented" });
 }

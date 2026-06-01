@@ -176,40 +176,38 @@ export default function SettingsForm({ user }) {
                     <p className="text-sm text-gray-500 mb-4">Manage payment methods and payouts.</p>
                     
                     <div className="space-y-4">
-                        {/* Stripe */}
-                        <div className="border border-gray-100 rounded-lg p-3">
+                        {/* Stripe — coming soon */}
+                        <div className="border border-gray-100 rounded-lg p-3 opacity-60">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold text-sm text-gray-700">Stripe (International)</span>
-                                {user?.stripeId && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Active</span>}
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase">
+                                    Coming soon
+                                </span>
                             </div>
-                            {user?.stripeId ? (
-                                <div className="flex items-center gap-2 text-sm text-green-600 font-bold bg-green-50 p-2 rounded">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    Connected
-                                </div>
-                            ) : (
-                                <button className="w-full bg-[#635BFF] text-white py-2 rounded-lg font-bold text-xs hover:bg-[#5349e0] transition">
+                            <button
+                                type="button"
+                                disabled
+                                className="w-full bg-gray-200 text-gray-500 py-2 rounded-lg font-bold text-xs cursor-not-allowed"
+                            >
                                 Connect Stripe
-                                </button>
-                            )}
+                            </button>
                         </div>
 
-                        {/* GoPayFast */}
-                        <div className="border border-gray-100 rounded-lg p-3">
+                        {/* GoPayFast — coming soon */}
+                        <div className="border border-gray-100 rounded-lg p-3 opacity-60">
                             <div className="flex justify-between items-center mb-2">
                                 <span className="font-bold text-sm text-gray-700">GoPayFast (Pakistan)</span>
-                                {user?.gopayfastId && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Active</span>}
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold uppercase">
+                                    Coming soon
+                                </span>
                             </div>
-                            {user?.gopayfastId ? (
-                                <div className="flex items-center gap-2 text-sm text-green-600 font-bold bg-green-50 p-2 rounded">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    Connected
-                                </div>
-                            ) : (
-                                <button className="w-full bg-[#F37021] text-white py-2 rounded-lg font-bold text-xs hover:bg-[#e06010] transition">
+                            <button
+                                type="button"
+                                disabled
+                                className="w-full bg-gray-200 text-gray-500 py-2 rounded-lg font-bold text-xs cursor-not-allowed"
+                            >
                                 Connect GoPayFast
-                                </button>
-                            )}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -6,6 +6,7 @@ import { Plus, Search, Edit, Trash2, Filter, Save, X } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/admin/Loader";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function ProductsPage() {
     const [products, setProducts] = useState([]);
@@ -158,22 +159,22 @@ export default function ProductsPage() {
                 {/* Category Filter */}
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <Filter size={18} className="text-gray-400" />
-                    <select
+                    <StyledSelect
+                        className="flex-1 md:w-52"
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="flex-1 md:w-48 px-4 py-2 bg-gray-50 border-none text-sm rounded-lg outline-none cursor-pointer focus:ring-1 focus:ring-black/5"
-                    >
-                        <option value="All">All Categories</option>
-                        {categories.map(cat => (
-                            <option key={cat._id} value={cat.name}>{cat.name}</option>
-                        ))}
-                    </select>
+                        options={[
+                            { value: "All", label: "All Categories" },
+                            ...categories.map((cat) => ({ value: cat.name, label: cat.name })),
+                        ]}
+                        aria-label="Filter by category"
+                    />
                 </div>
             </div>
 
             {/* Products Table */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto overflow-y-visible admin-table-scroll">
+                <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
                             <th className="px-6 py-4 font-medium">Product</th>
@@ -220,17 +221,20 @@ export default function ProductsPage() {
                                     <td className="px-6 py-4 text-sm text-gray-600">
                                         {editingProduct === product._id ? (
                                             <div className="flex items-center gap-2">
-                                                <select
-                                                    className="text-xs border border-gray-300 rounded p-1 outline-none"
-                                                    defaultValue={product.category}
-                                                    onChange={(e) => handleUpdateCategory(product._id, e.target.value)}
-                                                    onBlur={() => setEditingProduct(null)} // Close on blur/selection
-                                                    autoFocus
-                                                >
-                                                    {categories.map(c => (
-                                                        <option key={c._id} value={c.name}>{c.name}</option>
-                                                    ))}
-                                                </select>
+                                                <StyledSelect
+                                                    size="sm"
+                                                    className="min-w-[130px]"
+                                                    value={product.category}
+                                                    onChange={(e) => {
+                                                        handleUpdateCategory(product._id, e.target.value);
+                                                        setEditingProduct(null);
+                                                    }}
+                                                    options={categories.map((c) => ({
+                                                        value: c.name,
+                                                        label: c.name,
+                                                    }))}
+                                                    aria-label="Edit category"
+                                                />
                                                 <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
                                             </div>
                                         ) : (

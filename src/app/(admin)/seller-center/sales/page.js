@@ -6,6 +6,7 @@ import { TrendingUp, Tag, Calculator, History, Play, Pause, AlertTriangle, Refre
 import ConfirmationModal from "@/components/admin/ConfirmationModal";
 import Pagination from "@/components/admin/Pagination";
 import Loader from "@/components/admin/Loader";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function SalesPage() {
     const [categories, setCategories] = useState([]);
@@ -242,23 +243,24 @@ export default function SalesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="col-span-2">
                                 <label className="block text-sm font-bold mb-2">Target Category</label>
-                                <select
-                                    className="w-full border p-3 rounded bg-gray-50 font-medium"
+                                <StyledSelect
                                     value={campaign.targetValue}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         setCampaign({
                                             ...campaign,
                                             targetValue: val,
-                                            targetType: val === 'all' ? 'all' : 'category'
+                                            targetType: val === "all" ? "all" : "category",
                                         });
                                     }}
-                                    required
-                                >
-                                    <option value="">Select Target...</option>
-                                    <option value="all">Whole Website (All Products)</option>
-                                    {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                                </select>
+                                    options={[
+                                        { value: "", label: "Select Target…" },
+                                        { value: "all", label: "Whole Website (All Products)" },
+                                        ...categories.map((c) => ({ value: c.name, label: c.name })),
+                                    ]}
+                                    placeholder="Select Target…"
+                                    aria-label="Campaign target"
+                                />
                             </div>
 
                             <div>
@@ -370,22 +372,24 @@ export default function SalesPage() {
                     </div>
 
                     {/* Category Filter */}
-                    <select
-                        className="border p-2 rounded text-sm min-w-[200px]"
+                    <StyledSelect
+                        className="min-w-[200px]"
                         value={filterCategory}
                         onChange={(e) => {
                             setFilterCategory(e.target.value);
                             setCurrentPage(1);
                         }}
-                    >
-                        <option value="All">All Categories</option>
-                        {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                    </select>
+                        options={[
+                            { value: "All", label: "All Categories" },
+                            ...categories.map((c) => ({ value: c.name, label: c.name })),
+                        ]}
+                        aria-label="Filter campaign history"
+                    />
                 </div>
 
                 {/* Scrollable Table Wrapper */}
-                <div className="overflow-x-auto scrollbar-hide">
-                    <table className="w-full text-left text-sm min-w-[900px]">
+                <div className="admin-table-scroll scrollbar-hide">
+                    <table className="w-full text-left text-sm">
                         <thead className="bg-gray-50 text-gray-500 uppercase font-medium">
                             <tr>
                                 <th className="px-4 py-3">Campaign</th>
@@ -477,14 +481,17 @@ export default function SalesPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-1">Target</label>
-                                <select
-                                    className="w-full border p-2 rounded bg-white font-medium"
+                                <StyledSelect
                                     value={editModal.targetValue}
-                                    onChange={(e) => setEditModal({ ...editModal, targetValue: e.target.value })}
-                                >
-                                    <option value="all">Whole Website (All Products)</option>
-                                    {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                                </select>
+                                    onChange={(e) =>
+                                        setEditModal({ ...editModal, targetValue: e.target.value })
+                                    }
+                                    options={[
+                                        { value: "all", label: "Whole Website (All Products)" },
+                                        ...categories.map((c) => ({ value: c.name, label: c.name })),
+                                    ]}
+                                    aria-label="Edit campaign target"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold mb-1">Discount (%)</label>

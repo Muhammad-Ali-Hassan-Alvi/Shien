@@ -5,6 +5,7 @@ import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -161,16 +162,15 @@ export default function NewProductPage() {
 
                     <div>
                         <label className="block text-sm font-bold mb-2">Category</label>
-                        <select
+                        <StyledSelect
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
-                            className="w-full border p-3 rounded"
+                            options={categories.map((c) => ({ value: c.name, label: c.name }))}
+                            placeholder="Select Category"
                             required
-                        >
-                            <option value="" disabled>Select Category</option>
-                            {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                        </select>
+                            aria-label="Product category"
+                        />
                         {categories.length === 0 && <p className="text-xs text-red-500 mt-1">No categories found. Create one first.</p>}
                     </div>
 

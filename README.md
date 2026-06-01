@@ -1,4 +1,12 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Shien (iMART)
+
+Full-stack fashion e-commerce for Pakistan — Next.js 16, MongoDB, NextAuth, Cloudinary.
+
+**Documentation**
+
+- [Architecture & flow traces](docs/ARCHITECTURE.md)
+- [Prioritized roadmap](docs/ROADMAP.md)
+- [Feature audit](PROGRESS.md)
 
 ## Getting Started
 

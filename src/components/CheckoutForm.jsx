@@ -4,7 +4,7 @@ import { useCartStore } from "@/store/useCartStore";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useSession, signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 const CITIES = [
     "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
@@ -14,10 +14,8 @@ const CITIES = [
 
 export default function CheckoutForm({ onSuccess }) {
     const { data: session, status } = useSession();
-    const router = useRouter();
     const { items, getCartTotal } = useCartStore();
 
-    const [paymentMethod, setPaymentMethod] = useState('COD');
     const [formData, setFormData] = useState({
         fullName: "",
         phone: "",
@@ -27,14 +25,12 @@ export default function CheckoutForm({ onSuccess }) {
     });
     const [loading, setLoading] = useState(false);
 
-    // Pre-fill data if available
     useEffect(() => {
         if (session?.user) {
             setFormData(prev => ({
                 ...prev,
                 fullName: session.user.name || "",
-                phone: session.user.phone || "", // Assuming phone might be in session
-                // email: session.user.email // If needed
+                phone: session.user.phone || "",
             }));
         }
     }, [session]);
@@ -47,7 +43,7 @@ export default function CheckoutForm({ onSuccess }) {
                 <h3 className="text-xl font-bold text-gray-900">Sign in to Checkout</h3>
                 <p className="text-gray-500">You must be logged in to complete your purchase.</p>
                 <button
-                    onClick={() => signIn()} // Params can be added to redirect back
+                    onClick={() => signIn()}
                     className="bg-black text-white px-8 py-3 rounded-lg font-bold hover:bg-gray-800 transition"
                 >
                     Sign In Now
@@ -72,27 +68,31 @@ export default function CheckoutForm({ onSuccess }) {
 
         const orderData = {
             items: items.map(item => ({
-                product: item._id, // Ensure this matches DB ID
+                product: item._id,
                 quantity: item.quantity,
                 variant: item.variant
             })),
             shippingInfo: formData,
-            paymentMethod: paymentMethod
+            paymentMethod: "COD",
         };
 
         try {
-            const res = await fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const res = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(orderData)
             });
 
             const data = await res.json();
-
             if (!res.ok) throw new Error(data.error || "Order Failed");
 
             toast.success("Order Placed!");
-            if (onSuccess) onSuccess(data.orderId);
+            if (onSuccess) {
+                onSuccess(data.orderId, {
+                    emailSent: data.emailSent,
+                    emailTo: data.emailTo,
+                });
+            }
 
         } catch (error) {
             console.error(error);
@@ -113,6 +113,7 @@ export default function CheckoutForm({ onSuccess }) {
                         <input
                             name="fullName"
                             required
+                            value={formData.fullName}
                             className="w-full border p-3 rounded mt-1 focus:ring-1 focus:ring-black outline-none"
                             onChange={handleChange}
                         />
@@ -126,6 +127,7 @@ export default function CheckoutForm({ onSuccess }) {
                             maxLength={11}
                             placeholder="03XXXXXXXXX"
                             required
+                            value={formData.phone}
                             className="w-full border p-3 rounded mt-1 focus:ring-1 focus:ring-black outline-none"
                             onChange={handleChange}
                         />
@@ -137,6 +139,7 @@ export default function CheckoutForm({ onSuccess }) {
                             name="address"
                             rows={2}
                             required
+                            value={formData.address}
                             className="w-full border p-3 rounded mt-1 focus:ring-1 focus:ring-black outline-none"
                             onChange={handleChange}
                         />
@@ -145,22 +148,21 @@ export default function CheckoutForm({ onSuccess }) {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="text-sm font-medium text-gray-700">City</label>
-                            <select
+                            <StyledSelect
                                 name="city"
-                                className="w-full border p-3 rounded mt-1 bg-white focus:ring-1 focus:ring-black outline-none"
-                                onChange={handleChange}
+                                className="mt-1"
                                 value={formData.city}
-                            >
-                                {CITIES.map(city => (
-                                    <option key={city} value={city}>{city}</option>
-                                ))}
-                            </select>
+                                onChange={handleChange}
+                                options={CITIES}
+                                aria-label="City"
+                            />
                         </div>
 
                         <div>
                             <label className="text-sm font-medium text-gray-700">Landmark</label>
                             <input
                                 name="nearestLandmark"
+                                value={formData.nearestLandmark}
                                 className="w-full border p-3 rounded mt-1 focus:ring-1 focus:ring-black outline-none"
                                 onChange={handleChange}
                             />
@@ -172,32 +174,40 @@ export default function CheckoutForm({ onSuccess }) {
             <div className="pt-4 border-t border-gray-100">
                 <h2 className="text-xl font-bold mb-4">Payment</h2>
                 <div className="space-y-3">
-                    <label className="flex items-center gap-3 p-4 border border-black bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 transition">
+                    <label className="flex items-center gap-3 p-4 border border-black bg-gray-50 rounded-md cursor-default">
                         <input
                             type="radio"
                             name="payment"
                             value="COD"
-                            checked={paymentMethod === 'COD'}
-                            onChange={() => setPaymentMethod('COD')}
+                            checked
+                            readOnly
                             className="w-5 h-5 accent-black"
                         />
-                        <span className="font-bold">Cash on Delivery (COD)</span>
-                    </label>
-
-                    <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 transition">
-                        <input
-                            type="radio"
-                            name="payment"
-                            value="GOPAYFAST"
-                            checked={paymentMethod === 'GOPAYFAST'}
-                            onChange={() => setPaymentMethod('GOPAYFAST')}
-                            className="w-5 h-5 accent-orange-500"
-                        />
-                        <div className="flex flex-col">
-                            <span className="font-bold text-gray-800">GoPayFast</span>
-                            <span className="text-xs text-gray-500">Pay via Bank Account / Wallet (Pakistan)</span>
+                        <div>
+                            <span className="font-bold">Cash on Delivery (COD)</span>
+                            <p className="text-xs text-gray-500 mt-0.5">Pay when your package arrives</p>
                         </div>
                     </label>
+
+                    <div
+                        className="flex items-center gap-3 p-4 border border-gray-200 rounded-md bg-gray-50 opacity-60 cursor-not-allowed"
+                        aria-disabled="true"
+                    >
+                        <input
+                            type="radio"
+                            disabled
+                            className="w-5 h-5"
+                        />
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-gray-500">PayFast · Cards & Wallets</span>
+                                <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+                                    Coming soon
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">Online payment will be available in a future update</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -206,7 +216,7 @@ export default function CheckoutForm({ onSuccess }) {
                 disabled={loading || items.length === 0}
                 className="w-full bg-black text-white py-4 font-bold text-lg uppercase tracking-wider hover:bg-gray-800 transition-colors disabled:bg-gray-400 rounded-md"
             >
-                {loading ? "Processing..." : `Place Order (Rs. ${getCartTotal()})`}
+                {loading ? "Processing..." : `Place Order (Rs. ${getCartTotal().toLocaleString()})`}
             </button>
         </form>
     );

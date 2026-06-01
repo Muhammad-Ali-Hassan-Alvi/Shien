@@ -2,7 +2,8 @@ import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
 import Sale from "@/app/lib/model/Sale";
 import User from "@/app/lib/model/User";
-import Notification from "@/app/lib/model/Notification";
+import { createManyUserNotifications } from "@/lib/notificationService";
+import { requireAdmin } from "@/app/lib/requireAdmin";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -17,6 +18,9 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { action, targetType, targetValue, percentage, increasePercentage, label, description, startDate, endDate } = await req.json();
 
@@ -73,7 +77,7 @@ export async function POST(req) {
                     link: "/", // Or a specific sales page
                     isRead: false
                 }));
-                await Notification.insertMany(notes);
+                await createManyUserNotifications(notes);
             }
         }
 
@@ -114,7 +118,7 @@ export async function POST(req) {
                     link: "/", // Or a specific sales page
                     isRead: false
                 }));
-                await Notification.insertMany(notes);
+                await createManyUserNotifications(notes);
             }
         }
 

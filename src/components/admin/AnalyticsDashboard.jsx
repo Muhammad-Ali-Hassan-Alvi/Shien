@@ -39,13 +39,14 @@ export default function AnalyticsDashboard({ orders }) {
     return (
         <div className="space-y-8">
             {/* Header Controls */}
-            <div className="flex flex-wrap justify-between items-center gap-4">
-                <div className="flex gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-stretch sm:items-center gap-4">
+                <div className="flex flex-wrap gap-1 sm:gap-2 bg-white p-1 rounded-lg border border-gray-200 shadow-sm w-full sm:w-auto">
                     {[7, 30, 90].map(days => (
                         <button
                             key={days}
+                            type="button"
                             onClick={() => setTimeRange(days)}
-                            className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${timeRange === days ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                            className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-md transition-all ${timeRange === days ? 'bg-black text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
                             Last {days} Days
                         </button>
@@ -53,7 +54,7 @@ export default function AnalyticsDashboard({ orders }) {
                 </div>
 
                 {/* Column Size Control */}
-                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-2 bg-white px-3 sm:px-4 py-2 rounded-lg border border-gray-200 shadow-sm w-full sm:w-auto min-w-0">
                     <span className="text-xs font-bold uppercase text-gray-500">Column Size</span>
                     <input
                         type="range"
@@ -74,7 +75,7 @@ export default function AnalyticsDashboard({ orders }) {
             </div>
 
             {/* Sales Chart */}
-            <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm w-full max-w-full">
+            <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl border border-gray-100 shadow-sm w-full max-w-full min-w-0 overflow-hidden">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-lg">Sales Trend</h3>
                 </div>

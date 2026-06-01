@@ -1,8 +1,50 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import Category from "@/app/lib/model/Category";
 import User from "@/app/lib/model/User";
-import Notification from "@/app/lib/model/Notification";
+import {
+    buildCategoryTree,
+    findCategoryInTree,
+    collectDescendantNames,
+    ACTIVE_CATEGORY_FILTER,
+    slugify,
+} from "@/app/lib/categoryUtils";
+import { createManyUserNotifications, notifyLowStockIfNeeded } from "@/lib/notificationService";
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/app/lib/requireAdmin";
+
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Resolve URL param (name or slug) to product category name(s). Returns null if unresolved. */
+async function resolveCategoryNames(categoryParam) {
+    if (!categoryParam) return null;
+
+    const allCategories = await Category.find(ACTIVE_CATEGORY_FILTER).lean();
+    const tree = buildCategoryTree(allCategories);
+
+    let match = findCategoryInTree(tree, categoryParam);
+    if (!match) {
+        const norm = categoryParam.toLowerCase();
+        const slugNorm = slugify(categoryParam);
+        const direct = allCategories.find(
+            (c) =>
+                c.name.toLowerCase() === norm ||
+                c.slug?.toLowerCase() === norm ||
+                c.slug?.toLowerCase() === slugNorm
+        );
+        if (direct) match = findCategoryInTree(tree, direct.name) || direct;
+    }
+
+    if (match) {
+        return match.children?.length
+            ? collectDescendantNames(match)
+            : [match.name];
+    }
+
+    return null;
+}
 
 export async function GET(req) {
     try {
@@ -31,7 +73,24 @@ export async function GET(req) {
         const skip = (page - 1) * limit;
 
         const query = {};
-        if (category) query.category = new RegExp(category, 'i');
+        if (category) {
+            const categoryNames = await resolveCategoryNames(category);
+            if (categoryNames?.length === 1) {
+                query.category = new RegExp(`^${escapeRegex(categoryNames[0])}$`, "i");
+            } else if (categoryNames?.length > 1) {
+                query.category = {
+                    $in: categoryNames.map((n) => new RegExp(`^${escapeRegex(n)}$`, "i")),
+                };
+            } else {
+                // Slug/name not in category tree — flexible match (e.g. category-2 → Category 2)
+                const parts = category.split(/[-_\s]+/).filter(Boolean).map(escapeRegex);
+                if (parts.length > 0) {
+                    query.category = new RegExp(parts.join("[\\s\\-_]*"), "i");
+                } else {
+                    query.category = new RegExp(escapeRegex(category), "i");
+                }
+            }
+        }
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
@@ -90,6 +149,9 @@ export async function GET(req) {
 
 export async function POST(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const body = await req.json();
 
@@ -114,6 +176,9 @@ export async function POST(req) {
 
 export async function PUT(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const body = await req.json();
         const { searchParams } = new URL(req.url);
@@ -149,9 +214,15 @@ export async function PUT(req) {
                     isRead: false
                 }));
 
-                await Notification.insertMany(notifications);
+                await createManyUserNotifications(notifications);
                 console.log(`Created restock notifications for ${notifications.length} users.`);
             }
+        }
+
+        try {
+            await notifyLowStockIfNeeded(updatedProduct, id);
+        } catch (e) {
+            console.error("Low stock notification failed:", e);
         }
 
         return NextResponse.json({ success: true, product: updatedProduct });
@@ -163,6 +234,9 @@ export async function PUT(req) {
 
 export async function DELETE(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");

@@ -3,6 +3,10 @@
 import { auth } from "@/auth";
 import connectDB from "@/app/lib/config/db";
 import Ticket from "@/app/lib/model/Ticket";
+import {
+    createUserNotification,
+    notifyAllAdmins,
+} from "@/lib/notificationService";
 import { revalidatePath } from "next/cache";
 
 /* --- User Actions --- */
@@ -14,7 +18,7 @@ export async function createTicket(prevState, formData) {
 
         const user = session.user.id;
         const subject = formData.get("subject");
-        const orderId = formData.get("orderId"); // Optional
+        const orderId = formData.get("orderId");
         const message = formData.get("message");
         const priority = formData.get("priority") || "Medium";
 
@@ -31,28 +35,36 @@ export async function createTicket(prevState, formData) {
             priority,
             messages: [
                 {
-                    sender: 'user',
+                    sender: "user",
                     message,
-                    createdAt: new Date()
-                }
-            ]
+                    createdAt: new Date(),
+                },
+            ],
         });
 
         await newTicket.save();
 
+        try {
+            await notifyAllAdmins({
+                type: "NewTicket",
+                message: `New help ticket: "${subject}"`,
+                link: `/seller-center/help-center/${newTicket._id}`,
+            });
+        } catch (e) {
+            console.error("Admin ticket notification failed:", e);
+        }
+
         revalidatePath("/profile/help-center");
         return { success: true, ticketId: newTicket._id.toString() };
-
     } catch (e) {
         console.error(e);
         return { error: "Failed to create ticket" };
     }
 }
 
-export async function replyToTicket(ticketId, message, sender = 'user') {
+export async function replyToTicket(ticketId, message, sender = "user") {
     try {
         const session = await auth();
-        // Basic check, more robust check would involve checking ticket ownership if sender is user
         if (!session?.user) return { error: "Not authenticated" };
 
         if (!message) return { error: "Message cannot be empty" };
@@ -62,70 +74,85 @@ export async function replyToTicket(ticketId, message, sender = 'user') {
         const ticket = await Ticket.findById(ticketId);
         if (!ticket) return { error: "Ticket not found" };
 
-        // Security check: If user, ensure they own the ticket
-        if (sender === 'user' && ticket.user.toString() !== session.user.id.toString()) {
+        if (sender === "user" && ticket.user.toString() !== session.user.id.toString()) {
             return { error: "Unauthorized" };
         }
 
-        // If admin, ensure they have admin role
-        if (sender === 'admin' && session.user.role !== 'admin') {
+        if (sender === "admin" && session.user.role !== "admin") {
             return { error: "Unauthorized" };
         }
 
         ticket.messages.push({
             sender,
             message,
-            createdAt: new Date()
+            createdAt: new Date(),
         });
 
-        if (sender === 'admin') {
-            if (ticket.status === 'Open') ticket.status = 'In Progress';
+        if (sender === "admin") {
+            if (ticket.status === "Open") ticket.status = "In Progress";
 
-            // Create Notification for User
             try {
-                const Notification = require("@/app/lib/model/Notification").default;
-                await Notification.create({
-                    user: ticket.user,
+                await createUserNotification({
+                    userId: ticket.user,
                     type: "TicketReply",
                     message: `Support replied to your ticket: "${ticket.subject}"`,
                     link: `/profile/help-center/${ticket._id}`,
-                    isRead: false
                 });
             } catch (notiError) {
                 console.error("Failed to create notification", notiError);
             }
         }
 
-        if (sender === 'user' && ticket.status === 'Resolved') {
-            ticket.status = 'Open'; // Re-open if user replies
+        if (sender === "user") {
+            if (ticket.status === "Resolved") ticket.status = "Open";
+
+            try {
+                await notifyAllAdmins({
+                    type: "TicketUpdate",
+                    message: `Customer replied on ticket: "${ticket.subject}"`,
+                    link: `/seller-center/help-center/${ticketId}`,
+                });
+            } catch (e) {
+                console.error("Admin ticket update notification failed:", e);
+            }
         }
 
         await ticket.save();
 
         revalidatePath(`/profile/help-center/${ticketId}`);
-        revalidatePath(`/seller-center/help-center/${ticketId}`); // Admin path
+        revalidatePath(`/seller-center/help-center/${ticketId}`);
 
         return { success: true };
-
     } catch (e) {
         console.error(e);
         return { error: "Failed to send reply" };
     }
 }
 
-
 /* --- Admin Actions --- */
 
 export async function updateTicketStatus(ticketId, status) {
     try {
         const session = await auth();
-        if (session?.user?.role !== 'admin') return { error: "Unauthorized" };
+        if (session?.user?.role !== "admin") return { error: "Unauthorized" };
 
         await connectDB();
-        await Ticket.findByIdAndUpdate(ticketId, { status });
+        const ticket = await Ticket.findByIdAndUpdate(ticketId, { status }, { new: true });
+        if (!ticket) return { error: "Ticket not found" };
+
+        try {
+            await createUserNotification({
+                userId: ticket.user,
+                type: "TicketStatus",
+                message: `Your ticket "${ticket.subject}" is now ${status}`,
+                link: `/profile/help-center/${ticketId}`,
+            });
+        } catch (e) {
+            console.error("Ticket status notification failed:", e);
+        }
 
         revalidatePath(`/seller-center/help-center`);
-        revalidatePath(`/profile/help-center/${ticketId}`); // Update for user view
+        revalidatePath(`/profile/help-center/${ticketId}`);
 
         return { success: true };
     } catch (e) {

@@ -1,23 +1,18 @@
 
 "use client";
 
-import { useActionState, useState } from "react";
-// Import createTicket action (requires 'use server' if imported directly, but simpler to use API route or server action import)
-// We defined createTicket in src/app/lib/help-actions.js
-// But that file uses `use server`.
-// To import it here, we need to ensure the server action is properly exported. 
-// However, next.js server actions can be imported in client components.
-
-// Wait, let's create a wrapper or just import it.
-import { createTicket } from "@/app/lib/help-actions"; // Ensure this path is correct based on previous step
-import { MessageSquare, ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { createTicket } from "@/app/lib/help-actions";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function NewTicketPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [priority, setPriority] = useState("Medium");
 
     async function handleSubmit(event) {
         event.preventDefault();
@@ -71,14 +66,13 @@ export default function NewTicketPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Priority</label>
-                            <select
+                            <StyledSelect
                                 name="priority"
-                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black/5 focus:border-gray-300 font-medium text-gray-900 transition-all appearance-none cursor-pointer"
-                            >
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                            </select>
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value)}
+                                options={["Low", "Medium", "High"]}
+                                variant="priority"
+                            />
                         </div>
                     </div>
 

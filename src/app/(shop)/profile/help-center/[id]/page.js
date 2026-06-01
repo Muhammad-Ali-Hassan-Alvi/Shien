@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Send } from "lucide-react";
 import ChatInterface from "./ChatInterface";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 // We fetch data in Server Component
 async function getTicket(id) {
@@ -41,13 +42,8 @@ export default async function TicketDetailPage({ params }) {
                 <div className="flex justify-between items-start gap-4">
                     <div>
                         <h1 className="text-2xl font-playfair font-black text-gray-900 mb-2">{ticket.subject}</h1>
-                        <div className="flex items-center gap-3 text-sm font-medium text-gray-500">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold border uppercase tracking-wider ${ticket.status === 'Open' ? 'bg-green-50 text-green-700 border-green-100' :
-                                ticket.status === 'In Progress' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                    ticket.status === 'Resolved' ? 'bg-gray-100 text-gray-800 border-gray-200' : 'bg-gray-50 text-gray-500 border-gray-100'
-                                }`}>
-                                {ticket.status}
-                            </span>
+                        <div className="flex items-center gap-3 text-sm font-medium text-gray-500 flex-wrap">
+                            <StatusBadge status={ticket.status} />
                             <span>ID: #{ticket._id.slice(-6).toUpperCase()}</span>
                             <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
                         </div>

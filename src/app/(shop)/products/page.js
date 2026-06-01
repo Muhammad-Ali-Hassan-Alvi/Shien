@@ -1,87 +1,194 @@
 "use client";
 
+
+
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Filter, ChevronDown, ShoppingBag } from "lucide-react";
+
+import { useRouter } from "next/navigation";
+
+import { Filter, SlidersHorizontal } from "lucide-react";
+
 import { toast } from "react-hot-toast";
-import Pagination from "@/components/admin/Pagination";
-// Reuse reusable components or generic ones
 
 import { use } from "react";
+
 import ProductCard from "@/components/ProductCard";
 
+import StyledSelect from "@/components/ui/StyledSelect";
+
+import ProductFilterSidebar from "@/components/ProductFilterSidebar";
+
+import { productsLink } from "@/app/lib/navLinks";
+
+import { findCategoryInTree } from "@/app/lib/categoryUtils";
+
+
+
+const SORT_OPTIONS = [
+
+    { value: "new", label: "Newest Arrivals" },
+
+    { value: "bestsellers", label: "Best Sellers" },
+
+    { value: "price_asc", label: "Price: Low to High" },
+
+    { value: "price_desc", label: "Price: High to Low" },
+
+];
+
+
+
 export default function ShopPage(props) {
+
     const searchParams = use(props.searchParams);
 
-    // ... rest of state init
+    const router = useRouter();
+
+
+
     const [products, setProducts] = useState([]);
+
     const [loading, setLoading] = useState(true);
-    const [categories, setCategories] = useState([]);
+
+    const [categoryTree, setCategoryTree] = useState([]);
+
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
     const [filters, setFilters] = useState({
+
         category: searchParams.category || "",
+
         search: searchParams.search || "",
+
         sort: searchParams.sort || "new",
+
         minPrice: "",
-        maxPrice: ""
+
+        maxPrice: "",
+
     });
 
-    // Pagination
+
+
     const [currentPage, setCurrentPage] = useState(1);
+
     const [totalPages, setTotalPages] = useState(1);
 
-    // Fetch Categories
+
+
     useEffect(() => {
         async function fetchCats() {
             try {
-                const res = await fetch("/api/categories");
+                const res = await fetch("/api/categories?tree=true");
+                if (!res.ok) {
+                    console.error("Categories API failed:", res.status);
+                    return;
+                }
                 const data = await res.json();
-                if (data.categories) setCategories(data.categories);
-            } catch (e) { console.error(e); }
+                if (data.categories) setCategoryTree(data.categories);
+            } catch (e) {
+                console.error(e);
+            }
         }
         fetchCats();
     }, []);
 
-    // Sync Filters with URL Params
+
+
     useEffect(() => {
-        setFilters(prev => ({
+
+        setFilters((prev) => ({
+
             ...prev,
+
             category: searchParams.category || "",
+
             search: searchParams.search || "",
-            sort: searchParams.sort || "new"
+
+            sort: searchParams.sort || "new",
+
         }));
+
+        setCurrentPage(1);
+
     }, [searchParams]);
 
-    // Fetch Products
+    useEffect(() => {
+        if (!filters.category || categoryTree.length === 0) return;
+        const match = findCategoryInTree(categoryTree, filters.category);
+        if (match && match.name !== filters.category) {
+            router.replace(
+                productsLink({
+                    category: match.name,
+                    search: filters.search || undefined,
+                    sort: filters.sort !== "new" ? filters.sort : undefined,
+                })
+            );
+        }
+    }, [categoryTree, filters.category, filters.search, filters.sort, router]);
+
     useEffect(() => {
         const fetchProducts = async () => {
             setLoading(true);
+
             try {
+
                 const query = new URLSearchParams({
+
                     page: currentPage,
+
                     limit: 12,
+
                     sort: filters.sort,
+
                     ...(filters.category && { category: filters.category }),
+
                     ...(filters.search && { search: filters.search }),
-                    // API might not support minPrice/maxPrice yet, need to implement filtering logic
+
                 });
+
+
 
                 const res = await fetch(`/api/products?${query.toString()}`);
                 const data = await res.json();
 
+                if (!res.ok) {
+                    setProducts([]);
+                    setTotalPages(1);
+                    toast.error(data.error || "Failed to load products");
+                    return;
+                }
+
                 if (data.products) {
-                    // Manual Client Side filtering for price if API doesn't support it 
-                    // (Note: API route modification is ideal, but for now client filtering on the fetched page)
+
                     let filtered = data.products;
-                    if (filters.minPrice) filtered = filtered.filter(p => p.pricing.salePrice >= Number(filters.minPrice));
-                    if (filters.maxPrice) filtered = filtered.filter(p => p.pricing.salePrice <= Number(filters.maxPrice));
+
+                    if (filters.minPrice) {
+
+                        filtered = filtered.filter((p) => p.pricing.salePrice >= Number(filters.minPrice));
+
+                    }
+
+                    if (filters.maxPrice) {
+
+                        filtered = filtered.filter((p) => p.pricing.salePrice <= Number(filters.maxPrice));
+
+                    }
+
+
 
                     setProducts(filtered);
+
                     setTotalPages(Math.ceil(data.total / 12));
+
                 }
+
             } catch (error) {
+
                 console.error(error);
+
                 toast.error("Failed to load products");
+
             } finally {
                 setLoading(false);
             }
@@ -90,99 +197,315 @@ export default function ShopPage(props) {
         fetchProducts();
     }, [filters, currentPage]);
 
-    const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
-        setCurrentPage(1);
+
+
+    const pushFilters = (next) => {
+
+        router.push(
+
+            productsLink({
+
+                category: next.category || undefined,
+
+                search: next.search || undefined,
+
+                sort: next.sort && next.sort !== "new" ? next.sort : undefined,
+
+            })
+
+        );
+
     };
 
+
+
+    const handleCategoryChange = (categoryName) => {
+
+        const next = { ...filters, category: categoryName };
+
+        setFilters(next);
+
+        setCurrentPage(1);
+
+        setMobileFiltersOpen(false);
+
+        pushFilters(next);
+
+    };
+
+
+
+    const handleSortChange = (sort) => {
+
+        const next = { ...filters, sort };
+
+        setFilters(next);
+
+        setCurrentPage(1);
+
+        pushFilters(next);
+
+    };
+
+
+
+    const handlePriceChange = (key, value) => {
+
+        setFilters((prev) => ({ ...prev, [key]: value }));
+
+        setCurrentPage(1);
+
+    };
+
+
+
+    const clearFilters = () => {
+
+        const empty = { category: "", search: "", sort: "new", minPrice: "", maxPrice: "" };
+
+        setFilters(empty);
+
+        setCurrentPage(1);
+
+        router.push("/products");
+
+    };
+
+
+
+    const activeCat = filters.category
+
+        ? findCategoryInTree(categoryTree, filters.category)
+
+        : null;
+
+
+
+    const pageTitle = filters.search
+
+        ? `Results for "${filters.search}"`
+
+        : activeCat
+
+          ? activeCat.name
+
+          : "All Products";
+
+
+
     return (
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-12">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
-                <div>
-                    <h1 className="text-4xl font-playfair font-bold text-gray-900">
-                        {filters.search ? `Results for "${filters.search}"` : "All Products"}
-                    </h1>
-                    <p className="text-gray-500 mt-2">Explore our latest collection</p>
-                </div>
 
-                {/* Filters & Sort */}
-                <div className="flex flex-wrap items-center gap-4">
-                    {/* Category */}
-                    <select
-                        className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-black"
-                        value={filters.category}
-                        onChange={(e) => handleFilterChange('category', e.target.value)}
-                    >
-                        <option value="">All Categories</option>
-                        {categories.map(c => <option key={c._id} value={c.name}>{c.name}</option>)}
-                    </select>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
 
-                    {/* Sort */}
-                    <select
-                        className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-black"
-                        value={filters.sort}
-                        onChange={(e) => handleFilterChange('sort', e.target.value)}
-                    >
-                        <option value="new">Newest Arrivals</option>
-                        <option value="bestsellers">Best Sellers</option>
-                        <option value="price_asc">Price: Low to High</option>
-                        <option value="price_desc">Price: High to Low</option>
-                    </select>
+            <div className="flex gap-8 lg:gap-12">
 
-                    {/* Price Range (Simple Inputs) */}
-                    <div className="flex items-center gap-2">
-                        <input
-                            placeholder="Min"
-                            className="w-20 px-2 py-2 border border-gray-200 rounded-lg text-sm outline-none"
-                            type="number"
-                            value={filters.minPrice}
-                            onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                        />
-                        <span className="text-gray-400">-</span>
-                        <input
-                            placeholder="Max"
-                            className="w-20 px-2 py-2 border border-gray-200 rounded-lg text-sm outline-none"
-                            type="number"
-                            value={filters.maxPrice}
-                            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                        />
+                <ProductFilterSidebar
+
+                    categoryTree={categoryTree}
+
+                    activeCategory={filters.category}
+
+                    minPrice={filters.minPrice}
+
+                    maxPrice={filters.maxPrice}
+
+                    onCategoryChange={handleCategoryChange}
+
+                    onPriceChange={handlePriceChange}
+
+                    onClear={clearFilters}
+
+                    mobileOpen={mobileFiltersOpen}
+
+                    onMobileClose={() => setMobileFiltersOpen(false)}
+
+                />
+
+
+
+                <div className="flex-1 min-w-0">
+
+                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 md:mb-8">
+
+                        <div>
+
+                            <h1 className="text-2xl md:text-4xl font-playfair font-bold text-gray-900">
+
+                                {pageTitle}
+
+                            </h1>
+
+                            <p className="text-gray-500 mt-1 text-sm md:text-base">
+
+                                {filters.category
+
+                                    ? "Browse products in this category"
+
+                                    : "Explore our latest collection"}
+
+                            </p>
+
+                        </div>
+
+
+
+                        <div className="flex items-center gap-3">
+
+                            <button
+
+                                type="button"
+
+                                onClick={() => setMobileFiltersOpen(true)}
+
+                                className="lg:hidden flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50"
+
+                            >
+
+                                <SlidersHorizontal size={16} />
+
+                                Filters
+
+                            </button>
+
+                            <StyledSelect
+
+                                className="min-w-[180px]"
+
+                                value={filters.sort}
+
+                                onChange={(e) => handleSortChange(e.target.value)}
+
+                                options={SORT_OPTIONS}
+
+                                aria-label="Sort products"
+
+                            />
+
+                        </div>
+
                     </div>
+
+
+
+                    {filters.category && (
+
+                        <div className="flex flex-wrap items-center gap-2 mb-6">
+
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Active filter:</span>
+
+                            <button
+
+                                type="button"
+
+                                onClick={() => handleCategoryChange("")}
+
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full"
+
+                            >
+
+                                {activeCat?.name || filters.category}
+
+                                <span className="opacity-70">×</span>
+
+                            </button>
+
+                        </div>
+
+                    )}
+
+
+
+                    {loading ? (
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+
+                                <div key={i} className="bg-gray-100 rounded-xl aspect-[3/4] animate-pulse" />
+
+                            ))}
+
+                        </div>
+
+                    ) : products.length === 0 ? (
+
+                        <div className="py-20 text-center text-gray-400">
+
+                            <Filter className="w-10 h-10 mx-auto mb-4 opacity-30" />
+
+                            <p className="text-xl">No products found matching your criteria.</p>
+
+                            <button
+
+                                onClick={clearFilters}
+
+                                className="mt-4 text-black underline hover:no-underline text-sm font-semibold"
+
+                            >
+
+                                Clear Filters
+
+                            </button>
+
+                        </div>
+
+                    ) : (
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-8 md:gap-x-6 md:gap-y-10">
+
+                            {products.map((product) => (
+
+                                <ProductCard key={product._id} product={product} />
+
+                            ))}
+
+                        </div>
+
+                    )}
+
+
+
+                    {totalPages > 1 && (
+
+                        <div className="mt-12 flex justify-center gap-2">
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+
+                                <button
+
+                                    key={page}
+
+                                    onClick={() => setCurrentPage(page)}
+
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+
+                                        currentPage === page
+
+                                            ? "bg-black text-white"
+
+                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+
+                                    }`}
+
+                                >
+
+                                    {page}
+
+                                </button>
+
+                            ))}
+
+                        </div>
+
+                    )}
+
                 </div>
+
             </div>
 
-            {loading ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <div key={i} className="bg-gray-100 rounded-xl aspect-[3/4] animate-pulse"></div>
-                    ))}
-                </div>
-            ) : products.length === 0 ? (
-                <div className="py-20 text-center text-gray-400">
-                    <p className="text-xl">No products found matching your criteria.</p>
-                    <button onClick={() => setFilters({ category: "", sort: "new", minPrice: "", maxPrice: "" })} className="mt-4 text-black underline hover:no-underline">Clear Filters</button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10">
-                    {products.map((product) => (
-                        <ProductCard key={product._id} product={product} />
-                    ))}
-                </div>
-            )}
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-                <div className="mt-12 flex justify-center gap-2">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                        <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${currentPage === page ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                        >
-                            {page}
-                        </button>
-                    ))}
-                </div>
-            )}
         </div>
+
     );
+
 }
+

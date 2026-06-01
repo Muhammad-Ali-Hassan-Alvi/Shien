@@ -51,7 +51,7 @@ export default function ProductReviews({ productId }) {
         const res = await addReview(productId, rating, comment);
 
         if (res.success) {
-            toast.success("Review submitted!");
+            toast.success(res.pending ? "Review submitted for approval!" : "Review submitted!");
             setComment("");
             fetchReviews();
         } else {

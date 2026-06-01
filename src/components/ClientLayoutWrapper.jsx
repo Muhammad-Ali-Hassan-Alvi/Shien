@@ -1,6 +1,10 @@
 "use client";
 
+import { Suspense, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useWishlistStore } from "@/store/useWishlistStore";
+import { fetchAndSetWishlist } from "@/app/lib/wishlistHydrate";
 import Navbar from "@/components/Navbar";
 import ServiceBar from "@/components/ServiceBar";
 import BottomNav from "@/components/BottomNav";
@@ -8,6 +12,20 @@ import CartDrawer from "@/components/CartDrawer";
 import Footer from "@/components/Footer";
 import { Toaster } from 'react-hot-toast';
 import { SessionProvider } from "next-auth/react";
+import { SocketProvider } from "@/context/SocketProvider";
+
+function WishlistHydrator({ isAdmin }) {
+  const { status } = useSession();
+  const setWishlist = useWishlistStore((s) => s.setWishlist);
+
+  useEffect(() => {
+    if (!isAdmin && status === "authenticated") {
+      fetchAndSetWishlist(setWishlist);
+    }
+  }, [isAdmin, status, setWishlist]);
+
+  return null;
+}
 
 export default function ClientLayoutWrapper({ children, session }) {
   const pathname = usePathname();
@@ -15,6 +33,8 @@ export default function ClientLayoutWrapper({ children, session }) {
 
   return (
     <SessionProvider session={session}>
+      <SocketProvider>
+      <WishlistHydrator isAdmin={isAdmin} />
       {!isAdmin && <ServiceBar />}
       {!isAdmin && <Navbar />}
       
@@ -23,7 +43,11 @@ export default function ClientLayoutWrapper({ children, session }) {
       </main>
 
       {!isAdmin && <Footer />}
-      {!isAdmin && <BottomNav />}
+      {!isAdmin && (
+        <Suspense fallback={null}>
+          <BottomNav />
+        </Suspense>
+      )}
       
       {!isAdmin && <CartDrawer />}
       
@@ -56,6 +80,7 @@ export default function ClientLayoutWrapper({ children, session }) {
             }
           }}
         />
+      </SocketProvider>
     </SessionProvider>
   );
 }

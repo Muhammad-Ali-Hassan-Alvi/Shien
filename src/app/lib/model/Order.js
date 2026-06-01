@@ -34,8 +34,15 @@ const OrderSchema = new mongoose.Schema(
         paymentMethod: {
             type: String,
             default: "COD",
-            enum: ["COD"], // Only COD for now
+            enum: ["COD", "GOPAYFAST"],
         },
+        paymentStatus: {
+            type: String,
+            enum: ["pending", "paid", "failed"],
+            default: "pending",
+        },
+        payfastBasketId: { type: String },
+        payfastMerchantTxnId: { type: String },
         status: {
             type: String,
             enum: [

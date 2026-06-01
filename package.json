@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
+    "dev:next": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
+    "start:next": "next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -29,6 +31,8 @@
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",
     "react-intersection-observer": "^10.0.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
