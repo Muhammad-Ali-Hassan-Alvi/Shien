@@ -11,6 +11,7 @@ import { productsLink } from "@/app/lib/navLinks";
 import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
 import ProductQA from "./ProductQA";
+import ShareProductButton from "./ShareProductButton";
 
 export default function ProductView({ product, relatedProducts = [] }) {
     const { addItem } = useCartStore();
@@ -49,6 +50,15 @@ export default function ProductView({ product, relatedProducts = [] }) {
 
     const decreaseQty = () => setQuantity((q) => Math.max(1, q - 1));
     const increaseQty = () => setQuantity((q) => Math.min(maxStock, q + 1));
+
+    const handleCopySku = async () => {
+        try {
+            await navigator.clipboard.writeText(sku);
+            toast.success("SKU copied!");
+        } catch {
+            toast.error("Could not copy SKU");
+        }
+    };
 
     const handleQtyInput = (e) => {
         const val = parseInt(e.target.value, 10);
@@ -145,7 +155,15 @@ export default function ProductView({ product, relatedProducts = [] }) {
                                 {product.name}
                             </h1>
                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">SKU: {sku} <Copy size={12} /></span>
+                                <button
+                                    type="button"
+                                    onClick={handleCopySku}
+                                    className="flex items-center gap-1 hover:text-black transition-colors"
+                                    title="Copy SKU"
+                                >
+                                    SKU: {sku} <Copy size={12} />
+                                </button>
+                                <ShareProductButton product={product} variant="pill" />
                                 <div className="flex items-center gap-1 text-[#FFB800]">
                                     {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill="currentColor" />)}
                                     <span className="text-blue-600 underline ml-1">({reviewCount} Reviews)</span>
@@ -260,6 +278,7 @@ export default function ProductView({ product, relatedProducts = [] }) {
                             <button className="w-full border border-gray-300 py-3 rounded-full font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
                                 <Heart size={18} /> Add to Wishlist
                             </button>
+                            <ShareProductButton product={product} variant="button" className="w-full" />
                         </div>
 
                         {/* Service Badges */}

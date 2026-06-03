@@ -38,7 +38,7 @@ export default function ClientLayoutWrapper({ children, session }) {
       {!isAdmin && <ServiceBar />}
       {!isAdmin && <Navbar />}
       
-      <main className={`min-h-screen ${!isAdmin ? "pb-16 md:pb-0" : ""}`}>
+      <main className={`min-h-screen overflow-x-hidden ${!isAdmin ? "pb-[4.5rem] md:pb-0" : ""}`}>
         {children}
       </main>
 
@@ -54,7 +54,7 @@ export default function ClientLayoutWrapper({ children, session }) {
       <Toaster
           position="bottom-right"
           toastOptions={{
-            className: '!bg-white/70 !backdrop-blur-xl !shadow-2xl !border !border-white/20 !rounded-2xl !text-gray-900', 
+            className: '!bg-white/70 !backdrop-blur-xl !shadow-2xl !border !border-white/20 !rounded-2xl !text-gray-900 !mb-20 md:!mb-0', 
             style: {
               background: 'rgba(255, 255, 255, 0.8)',
               backdropFilter: 'blur(16px)',

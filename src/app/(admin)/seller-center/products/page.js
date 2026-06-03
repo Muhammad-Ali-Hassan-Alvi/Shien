@@ -2,27 +2,53 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit, Trash2, Filter, Save, X } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Filter, RotateCcw, FolderInput } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
 import Loader from "@/components/admin/Loader";
+import DeleteModal from "@/components/admin/DeleteModal";
+import MoveCategoryModal from "@/components/admin/MoveCategoryModal";
 import StyledSelect from "@/components/ui/StyledSelect";
+import {
+    buildCategorySelectOptions,
+    formatCategoryBreadcrumb,
+} from "@/app/lib/categoryUtils";
+
+function productIdStr(product) {
+    const id = product?._id;
+    return typeof id === "string" ? id : id?.toString?.() ?? String(id);
+}
+
+function shouldShowDiscountLabel(label) {
+    if (!label) return false;
+    const n = String(label).replace(/%/g, "").trim();
+    const pct = parseFloat(n);
+    return !Number.isNaN(pct) && pct > 0;
+}
 
 export default function ProductsPage() {
     const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]);
+    const [categoryTree, setCategoryTree] = useState([]);
+    const [categoryFilterOptions, setCategoryFilterOptions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
-    const [editingProduct, setEditingProduct] = useState(null); // Product being edited
+    const [view, setView] = useState("active"); // active | recycle
+    const [moveModal, setMoveModal] = useState(null); // { products: [...] }
+    const [modal, setModal] = useState(null); // single product or bulk ids
+    const [actionLoading, setActionLoading] = useState(false);
+    const [selectedIds, setSelectedIds] = useState(() => new Set());
 
-    // Fetch Categories
+    // Fetch categories (flat filter + tree for move picker)
     useEffect(() => {
         async function fetchCategories() {
             try {
-                const res = await fetch("/api/categories");
-                const data = await res.json();
-                if (data.categories) setCategories(data.categories);
+                const treeRes = await fetch("/api/categories?tree=true&admin=true");
+                const treeData = await treeRes.json();
+                if (treeData.categories) {
+                    setCategoryTree(treeData.categories);
+                    setCategoryFilterOptions(buildCategorySelectOptions(treeData.categories));
+                }
             } catch (error) {
                 console.error("Failed to fetch categories", error);
             }
@@ -36,6 +62,9 @@ export default function ProductsPage() {
             setLoading(true);
             try {
                 let url = `/api/products?limit=100&includeStats=true`;
+                if (view === "recycle") {
+                    url += "&archived=true";
+                }
                 if (selectedCategory !== "All") {
                     url += `&category=${encodeURIComponent(selectedCategory)}`;
                 }
@@ -51,32 +80,140 @@ export default function ProductsPage() {
             }
         }
         fetchProducts();
-    }, [selectedCategory]);
+        setSelectedIds(new Set());
+    }, [selectedCategory, view]);
 
-    // Handle Category Update
-    const handleUpdateCategory = async (productId, newCategory) => {
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleConfirmModal = async () => {
+        if (!modal) return;
+
+        const isBulk = Array.isArray(modal.productIds) && modal.productIds.length > 0;
+        const ids = isBulk
+            ? modal.productIds
+            : modal.product
+              ? [productIdStr(modal.product)]
+              : [];
+
+        if (ids.length === 0) return;
+
+        setActionLoading(true);
         try {
-            const res = await fetch(`/api/products?id=${productId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ category: newCategory }),
-            });
+            const actions = await import("@/app/lib/product-actions");
+            let res;
 
-            const data = await res.json();
-
-            if (res.ok) {
-                toast.success("Category updated successfully!");
-                // Update local state
-                setProducts(products.map(p =>
-                    p._id === productId ? { ...p, category: newCategory } : p
-                ));
-                setEditingProduct(null);
+            if (modal.type === "archive") {
+                res = isBulk
+                    ? await actions.archiveProductsBulk(ids)
+                    : await actions.archiveProduct(ids[0]);
+            } else if (modal.type === "restore") {
+                res = isBulk
+                    ? await actions.restoreProductsBulk(ids)
+                    : await actions.restoreProduct(ids[0]);
             } else {
-                toast.error(data.error || "Failed to update category");
+                res = isBulk
+                    ? await actions.deleteProductsPermanentlyBulk(ids)
+                    : await actions.deleteProductPermanently(ids[0]);
+            }
+
+            if (res.success) {
+                const count = res.succeeded ?? ids.length;
+                const messages = {
+                    archive: isBulk
+                        ? `${count} product(s) moved to recycle bin`
+                        : "Moved to recycle bin",
+                    restore: isBulk
+                        ? `${count} product(s) restored`
+                        : "Product restored",
+                    permanent: isBulk
+                        ? `${count} product(s) permanently deleted`
+                        : "Product permanently deleted",
+                };
+                toast.success(messages[modal.type]);
+                if (res.failed > 0) {
+                    toast.error(`${res.failed} item(s) could not be processed`);
+                }
+                const idSet = new Set(ids);
+                setProducts((prev) => prev.filter((p) => !idSet.has(productIdStr(p))));
+                setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    ids.forEach((id) => next.delete(id));
+                    return next;
+                });
+                setModal(null);
+            } else {
+                toast.error(res.error || "Action failed");
             }
         } catch (error) {
-            console.error("Update error:", error);
-            toast.error("Error updating category");
+            console.error(error);
+            toast.error("Something went wrong");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const openMoveModal = (productList) => {
+        if (!productList?.length) return;
+        setMoveModal({
+            products: productList.map((p) => ({
+                _id: productIdStr(p),
+                name: p.name,
+                category: p.category,
+            })),
+        });
+    };
+
+    const handleMoveToCategory = async (newCategory) => {
+        if (!moveModal?.products?.length) return;
+
+        const ids = moveModal.products.map((p) => p._id);
+        let succeeded = 0;
+
+        for (const id of ids) {
+            try {
+                const res = await fetch(`/api/products?id=${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ category: newCategory }),
+                });
+                const data = await res.json();
+                if (res.ok) succeeded += 1;
+                else toast.error(data.error || `Failed to move product`);
+            } catch {
+                toast.error("Error updating category");
+            }
+        }
+
+        if (succeeded > 0) {
+            const idSet = new Set(ids);
+            setProducts((prev) =>
+                prev
+                    .map((p) =>
+                        idSet.has(productIdStr(p)) ? { ...p, category: newCategory } : p
+                    )
+                    .filter((p) => {
+                        if (selectedCategory === "All") return true;
+                        return p.category === selectedCategory;
+                    })
+            );
+            toast.success(
+                succeeded === 1
+                    ? "Product moved to new category"
+                    : `${succeeded} products moved to "${newCategory}"`
+            );
+            setMoveModal(null);
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                ids.forEach((id) => next.delete(id));
+                return next;
+            });
         }
     };
 
@@ -123,6 +260,32 @@ export default function ProductsPage() {
         return 0;
     });
 
+    const visibleIds = filteredProducts.map(productIdStr);
+    const selectedCount = selectedIds.size;
+    const selectedOnPage = visibleIds.filter((id) => selectedIds.has(id)).length;
+    const allVisibleSelected =
+        visibleIds.length > 0 && selectedOnPage === visibleIds.length;
+    const someVisibleSelected = selectedOnPage > 0 && !allVisibleSelected;
+
+    const toggleSelectAll = () => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                visibleIds.forEach((id) => next.delete(id));
+            } else {
+                visibleIds.forEach((id) => next.add(id));
+            }
+            return next;
+        });
+    };
+
+    const openBulkModal = (type) => {
+        const productIds = [...selectedIds];
+        if (productIds.length === 0) return;
+        setModal({ type, productIds, bulk: true });
+    };
+
+    const modalCount = modal?.productIds?.length ?? (modal?.product ? 1 : 0);
 
     return (
         <div className="space-y-6 relative">
@@ -131,15 +294,46 @@ export default function ProductsPage() {
                 {/* Header code */}
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage and categorize your inventory</p>
+                    <p className="text-gray-500 text-sm mt-1">
+                        {view === "recycle"
+                            ? "Restore items or delete them permanently"
+                            : "Manage and categorize your inventory"}
+                    </p>
                 </div>
-                <Link
-                    href="/seller-center/products/new"
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-lg shadow-black/20 font-medium"
+                {view === "active" && (
+                    <Link
+                        href="/seller-center/products/new"
+                        className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-lg shadow-black/20 font-medium"
+                    >
+                        <Plus size={18} />
+                        Add Product
+                    </Link>
+                )}
+            </div>
+
+            <div className="flex gap-2 border-b border-gray-100">
+                <button
+                    type="button"
+                    onClick={() => setView("active")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        view === "active"
+                            ? "border-black text-gray-900"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
                 >
-                    <Plus size={18} />
-                    Add Product
-                </Link>
+                    Active products
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setView("recycle")}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        view === "recycle"
+                            ? "border-black text-gray-900"
+                            : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                >
+                    Recycle bin
+                </button>
             </div>
 
             {/* Control Bar */}
@@ -165,18 +359,93 @@ export default function ProductsPage() {
                         onChange={(e) => setSelectedCategory(e.target.value)}
                         options={[
                             { value: "All", label: "All Categories" },
-                            ...categories.map((cat) => ({ value: cat.name, label: cat.name })),
+                            ...categoryFilterOptions,
                         ]}
                         aria-label="Filter by category"
+                        menuClassName="max-h-64 overflow-y-auto"
                     />
                 </div>
             </div>
+
+            {selectedCount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg">
+                    <span className="text-sm font-medium">
+                        {selectedCount} selected
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedIds(new Set())}
+                            className="px-3 py-1.5 text-sm rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                        >
+                            Clear
+                        </button>
+                        {view === "active" ? (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const list = products.filter((p) =>
+                                            selectedIds.has(productIdStr(p))
+                                        );
+                                        openMoveModal(list);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                                >
+                                    <FolderInput size={14} />
+                                    Move category
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => openBulkModal("archive")}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 transition-colors"
+                                >
+                                    <Trash2 size={14} />
+                                    Move to recycle bin
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => openBulkModal("restore")}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 transition-colors"
+                                >
+                                    <RotateCcw size={14} />
+                                    Restore
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => openBulkModal("permanent")}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-700 transition-colors"
+                                >
+                                    <Trash2 size={14} />
+                                    Delete forever
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Products Table */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto overflow-y-visible admin-table-scroll">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-4 w-12">
+                                <input
+                                    type="checkbox"
+                                    checked={allVisibleSelected}
+                                    ref={(el) => {
+                                        if (el) el.indeterminate = someVisibleSelected;
+                                    }}
+                                    onChange={toggleSelectAll}
+                                    disabled={loading || visibleIds.length === 0}
+                                    className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black/20 cursor-pointer disabled:opacity-40"
+                                    aria-label="Select all products on this page"
+                                />
+                            </th>
                             <th className="px-6 py-4 font-medium">Product</th>
                             <th className="px-6 py-4 font-medium">Category</th>
                             <th className="px-6 py-4 font-medium cursor-pointer hover:bg-gray-100" onClick={() => handleSort('salePrice')}>
@@ -194,15 +463,38 @@ export default function ProductsPage() {
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr>
-                                <td colSpan="5">
+                                <td colSpan="7">
                                     <Loader />
                                 </td>
                             </tr>
                         ) : filteredProducts.length === 0 ? (
-                            <tr><td colSpan="5" className="px-6 py-8 text-center text-gray-500">No products found.</td></tr>
+                            <tr>
+                                <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                                    {view === "recycle" ? "Recycle bin is empty." : "No products found."}
+                                </td>
+                            </tr>
                         ) : (
-                            filteredProducts.map((product) => (
-                                <tr key={product._id} className="hover:bg-gray-50 transition-colors group">
+                            filteredProducts.map((product) => {
+                                const id = productIdStr(product);
+                                const isSelected = selectedIds.has(id);
+                                const categoryBreadcrumb = formatCategoryBreadcrumb(
+                                    categoryTree,
+                                    product.category
+                                );
+                                return (
+                                <tr
+                                    key={id}
+                                    className={`hover:bg-gray-50 transition-colors group ${isSelected ? "bg-blue-50/50" : ""}`}
+                                >
+                                    <td className="px-4 py-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => toggleSelect(id)}
+                                            className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black/20 cursor-pointer"
+                                            aria-label={`Select ${product.name}`}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-md bg-gray-100 relative overflow-hidden shrink-0 border border-gray-200">
@@ -213,44 +505,31 @@ export default function ProductsPage() {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="font-medium text-gray-900 text-sm truncate max-w-[200px]" title={product.name}>{product.name}</p>
-                                                <p className="text-xs text-gray-400 truncate max-w-[200px]">{product.slug}</p>
+                                                <p
+                                                    className="font-medium text-gray-900 text-sm truncate max-w-[220px]"
+                                                    title={product.name}
+                                                >
+                                                    {product.name}
+                                                </p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                        {editingProduct === product._id ? (
-                                            <div className="flex items-center gap-2">
-                                                <StyledSelect
-                                                    size="sm"
-                                                    className="min-w-[130px]"
-                                                    value={product.category}
-                                                    onChange={(e) => {
-                                                        handleUpdateCategory(product._id, e.target.value);
-                                                        setEditingProduct(null);
-                                                    }}
-                                                    options={categories.map((c) => ({
-                                                        value: c.name,
-                                                        label: c.name,
-                                                    }))}
-                                                    aria-label="Edit category"
-                                                />
-                                                <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
-                                            </div>
-                                        ) : (
-                                            <span
-                                                className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors border border-gray-200"
-                                                onClick={() => setEditingProduct(product._id)}
-                                                title="Click to edit category"
-                                            >
-                                                {product.category}
-                                            </span>
-                                        )}
+                                    <td className="px-6 py-4 text-sm max-w-[240px]">
+                                        <button
+                                            type="button"
+                                            onClick={() => openMoveModal([product])}
+                                            className="text-left w-full text-xs text-gray-700 hover:text-indigo-600 transition-colors truncate"
+                                            title={`${categoryBreadcrumb} — click to move`}
+                                        >
+                                            {categoryBreadcrumb}
+                                        </button>
                                     </td>
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                                         Rs. {product.pricing?.salePrice?.toLocaleString()}
-                                        {product.pricing?.discountLabel && (
-                                            <span className="ml-2 text-[10px] text-red-500 bg-red-50 px-1 py-0.5 rounded">{product.pricing.discountLabel}</span>
+                                        {shouldShowDiscountLabel(product.pricing?.discountLabel) && (
+                                            <span className="ml-2 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-semibold">
+                                                {product.pricing.discountLabel}
+                                            </span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-500">
@@ -261,43 +540,129 @@ export default function ProductsPage() {
                                         {product.variants?.reduce((acc, v) => acc + (v.stock || 0), 0) || 0}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Link
-                                                href={`/seller-center/products/${product._id}`}
-                                                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
-                                                title="Edit Product"
-                                            >
-                                                <Edit size={16} />
-                                            </Link>
-                                            <button
-                                                onClick={async () => {
-                                                    if (confirm('Are you sure you want to delete this product?')) {
-                                                        const { deleteProduct } = await import("@/app/lib/product-actions");
-                                                        const res = await deleteProduct(product._id);
-                                                        if (res.success) {
-                                                            toast.success("Product deleted");
-                                                            // Refresh list
-                                                            setProducts(products.filter(p => p._id !== product._id));
-                                                        } else {
-                                                            toast.error(res.error);
+                                        <div className="flex items-center justify-end gap-1">
+                                            {view === "active" ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openMoveModal([product])}
+                                                        className="p-2 hover:bg-indigo-50 rounded-lg text-gray-500 hover:text-indigo-600 transition-colors"
+                                                        title="Move to category"
+                                                    >
+                                                        <FolderInput size={16} />
+                                                    </button>
+                                                    <Link
+                                                        href={`/seller-center/products/${productIdStr(product)}`}
+                                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
+                                                        title="Edit Product"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </Link>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setModal({ type: "archive", product })
                                                         }
-                                                    }
-                                                }}
-                                                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors"
-                                                title="Delete Product"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors"
+                                                        title="Move to recycle bin"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setModal({ type: "restore", product })
+                                                        }
+                                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-green-600 transition-colors"
+                                                        title="Restore product"
+                                                    >
+                                                        <RotateCcw size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setModal({ type: "permanent", product })
+                                                        }
+                                                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-red-600 transition-colors"
+                                                        title="Delete permanently"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
-                            ))
+                            );
+                            })
                         )}
 
                     </tbody>
                 </table>
             </div>
 
+            <MoveCategoryModal
+                isOpen={!!moveModal}
+                onClose={() => setMoveModal(null)}
+                products={moveModal?.products ?? []}
+                categoryTree={categoryTree}
+                onConfirm={handleMoveToCategory}
+            />
+
+            <DeleteModal
+                isOpen={!!modal}
+                onClose={() => !actionLoading && setModal(null)}
+                onConfirm={handleConfirmModal}
+                isDeleting={actionLoading}
+                title={
+                    modal?.bulk
+                        ? modal?.type === "archive"
+                            ? `Move ${modalCount} products to recycle bin?`
+                            : modal?.type === "restore"
+                              ? `Restore ${modalCount} products?`
+                              : `Delete ${modalCount} products permanently?`
+                        : modal?.type === "archive"
+                          ? "Move to recycle bin?"
+                          : modal?.type === "restore"
+                            ? "Restore product?"
+                            : "Delete permanently?"
+                }
+                message={
+                    modal?.bulk
+                        ? modal?.type === "archive"
+                            ? `${modalCount} selected product(s) will be hidden from the shop. You can restore them later from the Recycle bin tab.`
+                            : modal?.type === "restore"
+                              ? `${modalCount} selected product(s) will be visible on the shop again.`
+                              : `${modalCount} selected product(s) will be removed forever. This cannot be undone.`
+                        : modal?.type === "archive"
+                          ? `"${modal?.product?.name}" will be hidden from the shop. You can restore it later from the Recycle bin tab.`
+                          : modal?.type === "restore"
+                            ? `"${modal?.product?.name}" will be visible on the shop again.`
+                            : `"${modal?.product?.name}" will be removed forever. This cannot be undone.`
+                }
+                confirmLabel={
+                    modal?.type === "archive"
+                        ? "Move to bin"
+                        : modal?.type === "restore"
+                          ? "Restore"
+                          : "Delete forever"
+                }
+                loadingLabel={
+                    modal?.type === "archive"
+                        ? "Moving..."
+                        : modal?.type === "restore"
+                          ? "Restoring..."
+                          : "Deleting..."
+                }
+                confirmClassName={
+                    modal?.type === "restore"
+                        ? "bg-green-600 hover:bg-green-700 shadow-green-200"
+                        : "bg-red-600 hover:bg-red-700 shadow-red-200"
+                }
+            />
         </div>
     );
 }

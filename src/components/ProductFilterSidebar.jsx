@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight, ChevronDown, X } from "lucide-react";
-import { productsLink } from "@/app/lib/navLinks";
+import ProductPriceFilter from "@/components/ProductPriceFilter";
 
 function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
     const [expanded, setExpanded] = useState(() => {
@@ -90,7 +90,8 @@ export default function ProductFilterSidebar({
     minPrice,
     maxPrice,
     onCategoryChange,
-    onPriceChange,
+    onPriceApply,
+    priceBounds,
     onClear,
     mobileOpen,
     onMobileClose,
@@ -134,25 +135,16 @@ export default function ProductFilterSidebar({
 
             <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-4">Price</h3>
-                <div className="flex items-center gap-2">
-                    <input
-                        placeholder="Min"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-900"
-                        type="number"
-                        min="0"
-                        value={minPrice}
-                        onChange={(e) => onPriceChange("minPrice", e.target.value)}
+                {priceBounds ? (
+                    <ProductPriceFilter
+                        minPrice={minPrice}
+                        maxPrice={maxPrice}
+                        priceBounds={priceBounds}
+                        onApply={onPriceApply}
                     />
-                    <span className="text-gray-300">—</span>
-                    <input
-                        placeholder="Max"
-                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-gray-900"
-                        type="number"
-                        min="0"
-                        value={maxPrice}
-                        onChange={(e) => onPriceChange("maxPrice", e.target.value)}
-                    />
-                </div>
+                ) : (
+                    <p className="text-xs text-gray-400">Loading price range…</p>
+                )}
             </div>
 
             {(activeCategory || minPrice || maxPrice) && (
@@ -170,7 +162,7 @@ export default function ProductFilterSidebar({
     return (
         <>
             {/* Desktop sidebar */}
-            <aside className="hidden lg:block w-56 shrink-0">
+            <aside className="hidden lg:block w-64 xl:w-72 shrink-0">
                 <div className="sticky top-28 pr-6 border-r border-gray-100 min-h-[400px]">
                     {sidebarContent}
                 </div>

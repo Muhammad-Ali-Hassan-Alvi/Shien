@@ -32,7 +32,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${poppins.variable} ${playfair.variable} font-sans antialiased text-black relative min-h-screen`}
+        className={`${poppins.variable} ${playfair.variable} font-sans antialiased text-black relative min-h-screen overflow-x-hidden`}
         suppressHydrationWarning={true}
       >
         <div className="mesh-bg">

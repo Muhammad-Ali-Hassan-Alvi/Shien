@@ -2,7 +2,32 @@ import connectDB from "@/app/lib/config/db";
 import Category from "@/app/lib/model/Category";
 import Product from "@/app/lib/model/Product";
 import { requireAdmin } from "@/app/lib/requireAdmin";
-import { buildCategoryTree, slugify, ACTIVE_CATEGORY_FILTER } from "@/app/lib/categoryUtils";
+import {
+    buildCategoryTree,
+    slugify,
+    ACTIVE_CATEGORY_FILTER,
+    filterNavCategoryTree,
+} from "@/app/lib/categoryUtils";
+
+async function setDescendantsActive(categoryId, isActive) {
+    const queue = [categoryId];
+    const ids = [];
+
+    while (queue.length) {
+        const parentId = queue.shift();
+        const children = await Category.find({ parent: parentId }).select("_id").lean();
+        for (const child of children) {
+            ids.push(child._id);
+            queue.push(child._id);
+        }
+    }
+
+    if (ids.length > 0) {
+        await Category.updateMany({ _id: { $in: ids } }, { $set: { isActive } });
+    }
+
+    return ids.length;
+}
 import { NextResponse } from "next/server";
 
 async function wouldCreateCycle(categoryId, newParentId) {
@@ -34,7 +59,7 @@ export async function GET(req) {
         if (tree) {
             let treeData = buildCategoryTree(categories);
             if (navOnly) {
-                treeData = treeData.filter((cat) => cat.showInNav !== false);
+                treeData = filterNavCategoryTree(treeData);
             }
             const linesOnly = searchParams.get("lines") === "true";
             if (linesOnly) {
@@ -142,11 +167,20 @@ export async function PUT(req) {
 
         const updated = await Category.findByIdAndUpdate(id, fieldsToUpdate, { new: true });
 
+        let descendantsDeactivated = 0;
+        if (isActive === false) {
+            descendantsDeactivated = await setDescendantsActive(id, false);
+        }
+
         if (name && name.trim() !== oldName) {
             await Product.updateMany({ category: oldName }, { $set: { category: name.trim() } });
         }
 
-        return NextResponse.json({ success: true, category: updated });
+        return NextResponse.json({
+            success: true,
+            category: updated,
+            descendantsDeactivated,
+        });
     } catch (error) {
         if (error.code === 11000) {
             return NextResponse.json({ error: "Category name or slug already exists" }, { status: 400 });

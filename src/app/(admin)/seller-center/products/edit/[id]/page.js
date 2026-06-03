@@ -7,6 +7,7 @@ import { Upload, ArrowLeft } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import StyledSelect from "@/components/ui/StyledSelect";
+import { buildCategorySelectOptions } from "@/app/lib/categoryUtils";
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -15,7 +16,7 @@ export default function EditProductPage() {
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [categories, setCategories] = useState([]);
+    const [categoryOptions, setCategoryOptions] = useState([]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -39,9 +40,11 @@ export default function EditProductPage() {
         const fetchData = async () => {
             try {
                 // Categories
-                const catRes = await fetch('/api/categories');
+                const catRes = await fetch("/api/categories?tree=true&admin=true");
                 const catJson = await catRes.json();
-                if (catJson.categories) setCategories(catJson.categories);
+                if (catJson.categories) {
+                    setCategoryOptions(buildCategorySelectOptions(catJson.categories));
+                }
 
                 // Product
                 const prodRes = await fetch(`/api/products?id=${id}`);
@@ -221,10 +224,11 @@ export default function EditProductPage() {
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
-                            options={categories.map((c) => ({ value: c.name, label: c.name }))}
-                            placeholder="Select Category"
+                            options={categoryOptions}
+                            placeholder="Select category or subcategory"
                             required
                             aria-label="Product category"
+                            menuClassName="max-h-64 overflow-y-auto"
                         />
                     </div>
 

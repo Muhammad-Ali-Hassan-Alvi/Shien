@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 // Fetch data logic - return a plain object (no ObjectId/buffer) for Client Components
 async function getProduct(slug) {
     await connectDB();
-    const product = await Product.findOne({ slug }).lean();
+    const product = await Product.findOne({ slug, isArchived: { $ne: true } }).lean();
     if (!product) return null;
 
     // Convert to plain object so it can be passed to Client Components (no toJSON/buffer)

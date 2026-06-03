@@ -6,13 +6,14 @@ import Image from "next/image";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import StyledSelect from "@/components/ui/StyledSelect";
+import { buildCategorySelectOptions } from "@/app/lib/categoryUtils";
 
 export default function EditProductPage({ params }) {
     const { id } = use(params);
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
-    const [categories, setCategories] = useState([]);
+    const [categoryOptions, setCategoryOptions] = useState([]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -35,9 +36,11 @@ export default function EditProductPage({ params }) {
         const fetchData = async () => {
             try {
                 // Categories
-                const catRes = await fetch('/api/categories');
+                const catRes = await fetch("/api/categories?tree=true&admin=true");
                 const catJson = await catRes.json();
-                if (catJson.categories) setCategories(catJson.categories);
+                if (catJson.categories) {
+                    setCategoryOptions(buildCategorySelectOptions(catJson.categories));
+                }
 
                 // Product
                 const prodRes = await fetch(`/api/products?id=${id}`);
@@ -194,10 +197,11 @@ export default function EditProductPage({ params }) {
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
-                            options={categories.map((c) => ({ value: c.name, label: c.name }))}
-                            placeholder="Select Category"
+                            options={categoryOptions}
+                            placeholder="Select category or subcategory"
                             required
                             aria-label="Product category"
+                            menuClassName="max-h-64 overflow-y-auto"
                         />
                     </div>
 

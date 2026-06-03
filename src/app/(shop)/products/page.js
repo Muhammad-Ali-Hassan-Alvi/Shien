@@ -51,21 +51,15 @@ export default function ShopPage(props) {
     const [loading, setLoading] = useState(true);
 
     const [categoryTree, setCategoryTree] = useState([]);
-
+    const [priceBounds, setPriceBounds] = useState(null);
     const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
     const [filters, setFilters] = useState({
-
         category: searchParams.category || "",
-
         search: searchParams.search || "",
-
         sort: searchParams.sort || "new",
-
-        minPrice: "",
-
-        maxPrice: "",
-
+        minPrice: searchParams.minPrice || "",
+        maxPrice: searchParams.maxPrice || "",
     });
 
 
@@ -98,19 +92,14 @@ export default function ShopPage(props) {
     useEffect(() => {
 
         setFilters((prev) => ({
-
             ...prev,
-
             category: searchParams.category || "",
-
             search: searchParams.search || "",
-
             sort: searchParams.sort || "new",
-
+            minPrice: searchParams.minPrice || "",
+            maxPrice: searchParams.maxPrice || "",
         }));
-
         setCurrentPage(1);
-
     }, [searchParams]);
 
     useEffect(() => {
@@ -122,6 +111,8 @@ export default function ShopPage(props) {
                     category: match.name,
                     search: filters.search || undefined,
                     sort: filters.sort !== "new" ? filters.sort : undefined,
+                    minPrice: filters.minPrice || undefined,
+                    maxPrice: filters.maxPrice || undefined,
                 })
             );
         }
@@ -134,20 +125,14 @@ export default function ShopPage(props) {
             try {
 
                 const query = new URLSearchParams({
-
-                    page: currentPage,
-
-                    limit: 12,
-
+                    page: String(currentPage),
+                    limit: "12",
                     sort: filters.sort,
-
-                    ...(filters.category && { category: filters.category }),
-
-                    ...(filters.search && { search: filters.search }),
-
                 });
-
-
+                if (filters.category) query.set("category", filters.category);
+                if (filters.search) query.set("search", filters.search);
+                if (filters.minPrice) query.set("minPrice", filters.minPrice);
+                if (filters.maxPrice) query.set("maxPrice", filters.maxPrice);
 
                 const res = await fetch(`/api/products?${query.toString()}`);
                 const data = await res.json();
@@ -160,27 +145,9 @@ export default function ShopPage(props) {
                 }
 
                 if (data.products) {
-
-                    let filtered = data.products;
-
-                    if (filters.minPrice) {
-
-                        filtered = filtered.filter((p) => p.pricing.salePrice >= Number(filters.minPrice));
-
-                    }
-
-                    if (filters.maxPrice) {
-
-                        filtered = filtered.filter((p) => p.pricing.salePrice <= Number(filters.maxPrice));
-
-                    }
-
-
-
-                    setProducts(filtered);
-
-                    setTotalPages(Math.ceil(data.total / 12));
-
+                    setProducts(data.products);
+                    setTotalPages(Math.max(1, Math.ceil((data.total || 0) / 12)));
+                    if (data.priceBounds) setPriceBounds(data.priceBounds);
                 }
 
             } catch (error) {
@@ -200,21 +167,15 @@ export default function ShopPage(props) {
 
 
     const pushFilters = (next) => {
-
         router.push(
-
             productsLink({
-
                 category: next.category || undefined,
-
                 search: next.search || undefined,
-
                 sort: next.sort && next.sort !== "new" ? next.sort : undefined,
-
+                minPrice: next.minPrice || undefined,
+                maxPrice: next.maxPrice || undefined,
             })
-
         );
-
     };
 
 
@@ -249,12 +210,12 @@ export default function ShopPage(props) {
 
 
 
-    const handlePriceChange = (key, value) => {
-
-        setFilters((prev) => ({ ...prev, [key]: value }));
-
+    const handlePriceApply = (minPrice, maxPrice) => {
+        const next = { ...filters, minPrice, maxPrice };
+        setFilters(next);
         setCurrentPage(1);
-
+        setMobileFiltersOpen(false);
+        pushFilters(next);
     };
 
 
@@ -295,9 +256,9 @@ export default function ShopPage(props) {
 
     return (
 
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-12 w-full min-w-0">
 
-            <div className="flex gap-8 lg:gap-12">
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 min-w-0">
 
                 <ProductFilterSidebar
 
@@ -311,7 +272,8 @@ export default function ShopPage(props) {
 
                     onCategoryChange={handleCategoryChange}
 
-                    onPriceChange={handlePriceChange}
+                    onPriceApply={handlePriceApply}
+                    priceBounds={priceBounds}
 
                     onClear={clearFilters}
 
@@ -349,7 +311,7 @@ export default function ShopPage(props) {
 
 
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
 
                             <button
 
@@ -357,7 +319,7 @@ export default function ShopPage(props) {
 
                                 onClick={() => setMobileFiltersOpen(true)}
 
-                                className="lg:hidden flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50"
+                                className="lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50"
 
                             >
 
@@ -369,7 +331,7 @@ export default function ShopPage(props) {
 
                             <StyledSelect
 
-                                className="min-w-[180px]"
+                                className="w-full sm:w-auto sm:min-w-[180px]"
 
                                 value={filters.sort}
 
@@ -387,30 +349,30 @@ export default function ShopPage(props) {
 
 
 
-                    {filters.category && (
-
+                    {(filters.category || filters.minPrice || filters.maxPrice) && (
                         <div className="flex flex-wrap items-center gap-2 mb-6">
-
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Active filter:</span>
-
-                            <button
-
-                                type="button"
-
-                                onClick={() => handleCategoryChange("")}
-
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full"
-
-                            >
-
-                                {activeCat?.name || filters.category}
-
-                                <span className="opacity-70">×</span>
-
-                            </button>
-
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">Active filters:</span>
+                            {filters.category && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleCategoryChange("")}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full"
+                                >
+                                    {activeCat?.name || filters.category}
+                                    <span className="opacity-70">×</span>
+                                </button>
+                            )}
+                            {(filters.minPrice || filters.maxPrice) && (
+                                <button
+                                    type="button"
+                                    onClick={() => handlePriceApply("", "")}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-full"
+                                >
+                                    Rs. {filters.minPrice || priceBounds?.min || 0} – {filters.maxPrice || priceBounds?.max || "∞"}
+                                    <span className="opacity-70">×</span>
+                                </button>
+                            )}
                         </div>
-
                     )}
 
 

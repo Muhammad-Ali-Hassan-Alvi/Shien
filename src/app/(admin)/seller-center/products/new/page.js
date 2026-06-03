@@ -6,11 +6,12 @@ import Image from "next/image";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import StyledSelect from "@/components/ui/StyledSelect";
+import { buildCategorySelectOptions } from "@/app/lib/categoryUtils";
 
 export default function NewProductPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [categories, setCategories] = useState([]);
+    const [categoryOptions, setCategoryOptions] = useState([]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -28,18 +29,18 @@ export default function NewProductPage() {
         profit: 0
     });
 
-    // Fetch Categories
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await fetch('/api/categories');
+                const res = await fetch("/api/categories?tree=true&admin=true");
                 const json = await res.json();
                 if (json.categories) {
-                    setCategories(json.categories);
-                    // Set default if not set
-                    if (json.categories.length > 0 && !formData.category) {
-                        setFormData(prev => ({ ...prev, category: json.categories[0].name }));
-                    }
+                    const opts = buildCategorySelectOptions(json.categories);
+                    setCategoryOptions(opts);
+                    setFormData((prev) => ({
+                        ...prev,
+                        category: prev.category || opts[0]?.value || "",
+                    }));
                 }
             } catch (err) {
                 console.error("Failed to load categories");
@@ -166,12 +167,15 @@ export default function NewProductPage() {
                             name="category"
                             value={formData.category}
                             onChange={handleChange}
-                            options={categories.map((c) => ({ value: c.name, label: c.name }))}
-                            placeholder="Select Category"
+                            options={categoryOptions}
+                            placeholder="Select category or subcategory"
                             required
                             aria-label="Product category"
+                            menuClassName="max-h-64 overflow-y-auto"
                         />
-                        {categories.length === 0 && <p className="text-xs text-red-500 mt-1">No categories found. Create one first.</p>}
+                        {categoryOptions.length === 0 && (
+                            <p className="text-xs text-red-500 mt-1">No categories found. Create one first.</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

@@ -9,6 +9,7 @@ import CategoryUpdateModal from "@/components/admin/CategoryUpdateModal";
 
 function CategoryTreeNode({
     node,
+    parentNode,
     depth,
     expanded,
     onToggle,
@@ -44,6 +45,9 @@ function CategoryTreeNode({
                             <span className="text-indigo-600 font-bold uppercase tracking-wide">Line</span>
                         )}
                         {!node.isActive && <span className="text-red-400">Inactive</span>}
+                        {parentNode && parentNode.isActive === false && (
+                            <span className="text-orange-500">Hidden (parent inactive)</span>
+                        )}
                         {!node.showInNav && <span className="text-amber-500">Hidden from nav</span>}
                         {hasChildren && <span>{node.children.length} sub</span>}
                     </div>
@@ -83,6 +87,7 @@ function CategoryTreeNode({
                         <CategoryTreeNode
                             key={child._id}
                             node={child}
+                            parentNode={node}
                             depth={depth + 1}
                             expanded={expanded}
                             onToggle={onToggle}
@@ -179,7 +184,11 @@ export default function CategoriesPage() {
             const json = await res.json();
 
             if (res.ok) {
-                toast.success("Updated!", { id: toastId });
+                const extra =
+                    json.descendantsDeactivated > 0
+                        ? ` (${json.descendantsDeactivated} subcategories also deactivated)`
+                        : "";
+                toast.success(`Updated!${extra}`, { id: toastId });
                 setEditModal((prev) => (prev ? { ...prev, ...updates, name: updates.name ?? prev.name } : null));
                 await fetchCategories();
                 return true;

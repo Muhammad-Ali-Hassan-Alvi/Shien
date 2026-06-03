@@ -4,19 +4,7 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { productsLink } from "@/app/lib/navLinks";
-
-function buildMegaColumns(line) {
-    const children = line.children || [];
-    if (children.length === 0) return null;
-
-    return children.map((child) => ({
-        title: child.name,
-        items:
-            child.children?.length > 0
-                ? child.children.map((c) => ({ name: c.name, slug: c.slug }))
-                : [{ name: child.name, slug: child.slug }],
-    }));
-}
+import { buildMegaMenuColumns } from "@/app/lib/categoryUtils";
 
 function LineMegaMenu({ line, columns }) {
     if (!columns?.length) return null;
@@ -30,21 +18,26 @@ function LineMegaMenu({ line, columns }) {
             >
                 {columns.map((sub) => (
                     <div key={sub.title} className="space-y-3">
-                        <h4 className="font-bold text-xs uppercase tracking-widest text-gray-900 border-b border-gray-100 pb-2">
+                        <Link
+                            href={productsLink({ category: sub.title })}
+                            className="font-bold text-xs uppercase tracking-widest text-gray-900 border-b border-gray-100 pb-2 block hover:text-black transition-colors"
+                        >
                             {sub.title}
-                        </h4>
-                        <ul className="space-y-2">
-                            {sub.items.map((subItem) => (
-                                <li key={subItem.name}>
-                                    <Link
-                                        href={productsLink({ category: subItem.name })}
-                                        className="text-gray-500 hover:text-black block text-sm transition-colors"
-                                    >
-                                        {subItem.name}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
+                        </Link>
+                        {sub.items.length > 0 && (
+                            <ul className="space-y-2">
+                                {sub.items.map((subItem) => (
+                                    <li key={subItem.name}>
+                                        <Link
+                                            href={productsLink({ category: subItem.name })}
+                                            className="text-gray-500 hover:text-black block text-sm transition-colors"
+                                        >
+                                            {subItem.name}
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                 ))}
             </div>
@@ -98,7 +91,7 @@ export default function LinesNav({ lines, variant = "bar", onNavigate, activeLin
         <div className="border-t border-gray-100/80 bg-white/70 backdrop-blur-md hidden md:block">
             <div className="max-w-7xl mx-auto px-4 md:px-8 flex justify-center items-center gap-10 lg:gap-14 py-3">
                 {lines.map((line) => {
-                    const megaColumns = buildMegaColumns(line);
+                    const megaColumns = buildMegaMenuColumns(line);
                     const active = isLineActive(line);
 
                     return (

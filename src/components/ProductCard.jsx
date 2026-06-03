@@ -9,6 +9,7 @@ import { useWishlistStore } from "@/store/useWishlistStore";
 import { ShoppingBag, Heart } from "lucide-react";
 import { isProductInStock } from "@/app/lib/productStock";
 import StockBadge from "@/components/ui/StockBadge";
+import ShareProductButton from "@/components/ShareProductButton";
 
 export default function ProductCard({ product }) {
   const { addItem } = useCartStore();
@@ -27,7 +28,12 @@ export default function ProductCard({ product }) {
     originalPrice > salePrice
       ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
       : 0;
-  const badgeText = discountLabel || (percentOff > 0 ? `-${percentOff}% OFF` : null);
+  const badgeText =
+    percentOff > 0
+      ? discountLabel || `-${percentOff}% OFF`
+      : discountLabel && !/^0\s*%/i.test(String(discountLabel))
+        ? discountLabel
+        : null;
   const inStock = isProductInStock(product);
 
   const handleAddToCart = (e) => {
@@ -71,19 +77,22 @@ export default function ProductCard({ product }) {
             </div>
           )}
 
-          <button
-            onClick={handleWishlist}
-            className="absolute top-3 right-3 p-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white hover:bg-white hover:text-red-500 transition-all duration-300 hover:scale-110 active:scale-95 z-10 group/heart"
-          >
-            <Heart
-              size={18}
-              className={
-                isMounted && isInWishlist(product._id)
-                  ? "fill-red-500 text-red-500"
-                  : "text-gray-700 group-hover/heart:text-red-500"
-              }
-            />
-          </button>
+          <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+            <ShareProductButton product={product} />
+            <button
+              onClick={handleWishlist}
+              className="p-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white hover:bg-white hover:text-red-500 transition-all duration-300 hover:scale-110 active:scale-95 group/heart"
+            >
+              <Heart
+                size={18}
+                className={
+                  isMounted && isInWishlist(product._id)
+                    ? "fill-red-500 text-red-500"
+                    : "text-gray-700 group-hover/heart:text-red-500"
+                }
+              />
+            </button>
+          </div>
 
           {inStock && (
             <button

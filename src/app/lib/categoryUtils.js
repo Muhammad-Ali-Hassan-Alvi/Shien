@@ -24,7 +24,8 @@ export function buildCategoryTree(categories) {
         const parentId = cat.parent ? String(cat.parent) : null;
         if (parentId && map.has(parentId)) {
             map.get(parentId).children.push(node);
-        } else {
+        } else if (!parentId) {
+            // Only true roots — never promote children whose parent was filtered out (e.g. inactive)
             roots.push(node);
         }
     }
@@ -38,6 +39,19 @@ export function buildCategoryTree(categories) {
     return roots;
 }
 
+/** Remove nodes hidden from nav and prune empty branches (shop header / menu). */
+export function filterNavCategoryTree(tree) {
+    const walk = (nodes) =>
+        (nodes || [])
+            .filter((n) => n.showInNav !== false && n.isActive !== false)
+            .map((n) => {
+                const children = walk(n.children);
+                return { ...n, children };
+            });
+
+    return walk(tree);
+}
+
 /** Collect all descendant category names (including the node itself). */
 export function collectDescendantNames(node) {
     const names = [node.name];
@@ -45,6 +59,36 @@ export function collectDescendantNames(node) {
         names.push(...collectDescendantNames(child));
     }
     return names;
+}
+
+/** Names from root to the matched category (for breadcrumbs). */
+export function findCategoryPathInTree(tree, value) {
+    if (!value) return null;
+    const needle = value.toLowerCase();
+
+    const walk = (nodes, path) => {
+        for (const node of nodes) {
+            const next = [...path, node.name];
+            if (
+                node.name.toLowerCase() === needle ||
+                (node.slug && node.slug.toLowerCase() === needle)
+            ) {
+                return next;
+            }
+            const found = walk(node.children || [], next);
+            if (found) return found;
+        }
+        return null;
+    };
+
+    return walk(tree || [], []);
+}
+
+/** Full breadcrumb string, e.g. "Automotive and Motorbike › Bike". */
+export function formatCategoryBreadcrumb(tree, categoryName) {
+    const path = findCategoryPathInTree(tree, categoryName);
+    if (!path?.length) return categoryName?.trim() || "Uncategorized";
+    return path.join(" › ");
 }
 
 /** Find a category node in the tree by name or slug (case-insensitive). */
@@ -69,6 +113,22 @@ export function findCategoryInTree(tree, value) {
     return walk(tree);
 }
 
+/** Options for admin selects: indented labels, all levels (root → subcategory). */
+export function buildCategorySelectOptions(tree, { includeInactive = true } = {}) {
+    const flat = flattenCategoryTree(tree || []);
+    return flat
+        .filter((n) => includeInactive || n.isActive !== false)
+        .map((node) => {
+            const path = findCategoryPathInTree(tree, node.name);
+            const breadcrumb = path?.length ? path.join(" › ") : node.name;
+            const inactive = node.isActive === false ? " (inactive)" : "";
+            return {
+                value: node.name,
+                label: `${breadcrumb}${inactive}`,
+            };
+        });
+}
+
 /** Flatten tree to a list with depth info for sidebar rendering. */
 export function flattenCategoryTree(tree, depth = 0) {
     const result = [];
@@ -89,6 +149,26 @@ export function getLineCategories(tree) {
 /** Root categories for regular navbar (excludes lines). */
 export function getNavCategories(tree) {
     return (tree || []).filter((node) => node.isLine !== true);
+}
+
+/**
+ * Mega menu columns for navbar hover.
+ * Leaf subcategories (no children) appear once as a linked heading — not title + duplicate row.
+ */
+export function buildMegaMenuColumns(parentNode) {
+    const children = parentNode?.children || [];
+    if (!children.length) return null;
+
+    return children.map((child) => {
+        const nested = child.children || [];
+        if (nested.length > 0) {
+            return {
+                title: child.name,
+                items: nested.map((c) => ({ name: c.name })),
+            };
+        }
+        return { title: child.name, items: [] };
+    });
 }
 
 /** Build grouped sections for category list panel (Sapphire-style). */

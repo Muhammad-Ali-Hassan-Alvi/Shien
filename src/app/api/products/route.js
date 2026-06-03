@@ -73,6 +73,19 @@ export async function GET(req) {
         const skip = (page - 1) * limit;
 
         const query = {};
+        const archived = searchParams.get("archived");
+        const isAdminList = includeStats === "true";
+
+        if (isAdminList) {
+            if (archived === "true") {
+                query.isArchived = true;
+            } else {
+                query.isArchived = { $ne: true };
+            }
+        } else {
+            query.isArchived = { $ne: true };
+        }
+
         if (category) {
             const categoryNames = await resolveCategoryNames(category);
             if (categoryNames?.length === 1) {
@@ -97,6 +110,21 @@ export async function GET(req) {
                 { description: { $regex: search, $options: 'i' } },
                 { slug: { $regex: search, $options: 'i' } }
             ];
+        }
+
+        const minPriceParam = searchParams.get("minPrice");
+        const maxPriceParam = searchParams.get("maxPrice");
+        const priceFilter = {};
+        if (minPriceParam != null && minPriceParam !== "") {
+            const min = Number(minPriceParam);
+            if (!Number.isNaN(min) && min >= 0) priceFilter.$gte = min;
+        }
+        if (maxPriceParam != null && maxPriceParam !== "") {
+            const max = Number(maxPriceParam);
+            if (!Number.isNaN(max) && max >= 0) priceFilter.$lte = max;
+        }
+        if (Object.keys(priceFilter).length > 0) {
+            query["pricing.salePrice"] = priceFilter;
         }
 
         let sortOption = { createdAt: -1, _id: -1 };
@@ -134,11 +162,48 @@ export async function GET(req) {
             }));
         }
 
+        let priceBounds = null;
+        if (!isAdminList) {
+            const boundsQuery = { isArchived: { $ne: true } };
+            if (category) {
+                const categoryNames = await resolveCategoryNames(category);
+                if (categoryNames?.length === 1) {
+                    boundsQuery.category = new RegExp(`^${escapeRegex(categoryNames[0])}$`, "i");
+                } else if (categoryNames?.length > 1) {
+                    boundsQuery.category = {
+                        $in: categoryNames.map((n) => new RegExp(`^${escapeRegex(n)}$`, "i")),
+                    };
+                } else {
+                    const parts = category.split(/[-_\s]+/).filter(Boolean).map(escapeRegex);
+                    if (parts.length > 0) {
+                        boundsQuery.category = new RegExp(parts.join("[\\s\\-_]*"), "i");
+                    }
+                }
+            }
+            const [agg] = await Product.aggregate([
+                { $match: boundsQuery },
+                {
+                    $group: {
+                        _id: null,
+                        min: { $min: "$pricing.salePrice" },
+                        max: { $max: "$pricing.salePrice" },
+                    },
+                },
+            ]);
+            if (agg) {
+                priceBounds = {
+                    min: Math.floor(agg.min ?? 0),
+                    max: Math.ceil(agg.max ?? 0),
+                };
+            }
+        }
+
         return NextResponse.json({
             products,
             hasMore,
             page,
-            total
+            total,
+            priceBounds,
         });
 
     } catch (error) {
@@ -243,8 +308,26 @@ export async function DELETE(req) {
 
         if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-        await Product.findByIdAndDelete(id);
-        return NextResponse.json({ success: true });
+        const permanent = searchParams.get("permanent") === "true";
+        const product = await Product.findById(id);
+        if (!product) {
+            return NextResponse.json({ error: "Product not found" }, { status: 404 });
+        }
+
+        if (permanent) {
+            if (!product.isArchived) {
+                return NextResponse.json(
+                    { error: "Move product to recycle bin before permanent delete" },
+                    { status: 400 }
+                );
+            }
+            await Product.findByIdAndDelete(id);
+            return NextResponse.json({ success: true, permanent: true });
+        }
+
+        product.isArchived = true;
+        await product.save();
+        return NextResponse.json({ success: true, archived: true });
     } catch (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

@@ -2,7 +2,17 @@
 
 import { AlertTriangle } from "lucide-react";
 
-export default function DeleteModal({ isOpen, onClose, onConfirm, title, message, isDeleting }) {
+export default function DeleteModal({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+    isDeleting,
+    confirmLabel = "Delete",
+    loadingLabel = "Deleting...",
+    confirmClassName = "bg-red-600 hover:bg-red-700 shadow-red-200",
+}) {
     if (!isOpen) return null;
 
     return (
@@ -28,9 +38,9 @@ export default function DeleteModal({ isOpen, onClose, onConfirm, title, message
                         <button 
                             onClick={onConfirm}
                             disabled={isDeleting}
-                            className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                            className={`flex-1 py-3 px-4 text-white font-bold rounded-xl transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 ${confirmClassName}`}
                         >
-                            {isDeleting ? "Deleting..." : "Delete"}
+                            {isDeleting ? loadingLabel : confirmLabel}
                         </button>
                     </div>
                 </div>
