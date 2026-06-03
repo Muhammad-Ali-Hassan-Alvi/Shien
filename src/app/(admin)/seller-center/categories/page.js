@@ -6,6 +6,12 @@ import { ChevronRight, ChevronDown, Plus, FolderPlus, Trash2, Tag, Edit } from "
 import DeleteModal from "@/components/admin/DeleteModal";
 import Loader from "@/components/admin/Loader";
 import CategoryUpdateModal from "@/components/admin/CategoryUpdateModal";
+import CategorySetupHelp from "@/components/admin/CategorySetupHelp";
+import {
+    resolveEffectiveVariantSettings,
+    flattenCategoriesFlat,
+    formatVariantSettingsLabel,
+} from "@/app/lib/categoryUtils";
 
 function CategoryTreeNode({
     node,
@@ -16,9 +22,13 @@ function CategoryTreeNode({
     onEdit,
     onDelete,
     onAddChild,
+    flatCategories,
 }) {
     const hasChildren = node.children?.length > 0;
     const isExpanded = expanded.has(node._id);
+    const variantLabel = formatVariantSettingsLabel(
+        resolveEffectiveVariantSettings(flatCategories, node.name)
+    );
 
     return (
         <div>
@@ -49,6 +59,10 @@ function CategoryTreeNode({
                             <span className="text-orange-500">Hidden (parent inactive)</span>
                         )}
                         {!node.showInNav && <span className="text-amber-500">Hidden from nav</span>}
+                        <span className="text-indigo-500">{variantLabel}</span>
+                        {node.customVariantSettings && (
+                            <span className="text-violet-600 font-medium">Custom rules</span>
+                        )}
                         {hasChildren && <span>{node.children.length} sub</span>}
                     </div>
                 </div>
@@ -94,6 +108,7 @@ function CategoryTreeNode({
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddChild={onAddChild}
+                            flatCategories={flatCategories}
                         />
                     ))}
                 </div>
@@ -245,16 +260,20 @@ export default function CategoriesPage() {
 
     if (loading) return <Loader />;
 
+    const flatCategories = flattenCategoriesFlat(categoryTree);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Lines → departments (left menu) → groups → items. Mark roots as Line for Woman/Man style tabs.
+                        Organize your catalog tree and control size/color options per category type.
                     </p>
                 </div>
             </div>
+
+            <CategorySetupHelp />
 
             <form onSubmit={(e) => handleAdd(e)} className="flex gap-3 max-w-lg">
                 <input
@@ -291,6 +310,7 @@ export default function CategoriesPage() {
                                 onEdit={setEditModal}
                                 onDelete={(id) => setDeleteState({ isOpen: true, id, isDeleting: false })}
                                 onAddChild={(parent) => setAddingUnder({ parentId: parent._id, name: "" })}
+                                flatCategories={flatCategories}
                             />
                         ))}
                     </div>
@@ -336,6 +356,7 @@ export default function CategoriesPage() {
                 isOpen={!!editModal}
                 onClose={() => setEditModal(null)}
                 category={editModal}
+                categoryTree={categoryTree}
                 onUpdate={handleUpdate}
                 onRemoveProduct={handleRemoveProduct}
             />

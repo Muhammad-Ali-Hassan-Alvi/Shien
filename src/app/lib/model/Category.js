@@ -38,6 +38,23 @@ const CategorySchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        /** When true, this category defines its own variant rules (sizes/colors). */
+        customVariantSettings: {
+            type: Boolean,
+            default: false,
+        },
+        supportsSizes: {
+            type: Boolean,
+            default: true,
+        },
+        supportsColors: {
+            type: Boolean,
+            default: true,
+        },
+        sizeOptions: {
+            type: [String],
+            default: () => ["XS", "S", "M", "L", "XL"],
+        },
     },
     { timestamps: true }
 );

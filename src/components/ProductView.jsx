@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -12,8 +13,9 @@ import ProductCard from "./ProductCard";
 import ProductReviews from "./ProductReviews";
 import ProductQA from "./ProductQA";
 import ShareProductButton from "./ShareProductButton";
+import { DEFAULT_VARIANT_SETTINGS } from "@/app/lib/categoryUtils";
 
-export default function ProductView({ product, relatedProducts = [] }) {
+export default function ProductView({ product, relatedProducts = [], variantConfig = DEFAULT_VARIANT_SETTINGS }) {
     const { addItem } = useCartStore();
     const { openCart } = useUIStore();
 
@@ -22,8 +24,17 @@ export default function ProductView({ product, relatedProducts = [] }) {
     const [activeImage, setActiveImage] = useState(0);
     const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
     const [showZoom, setShowZoom] = useState(false);
+    const [zoomPanel, setZoomPanel] = useState({ top: 0, left: 0, width: 420, height: 560 });
+    const hoveredCellRef = useRef(null);
 
-    const images = product.images?.length > 0 ? product.images : ["/placeholder.jpg"];
+    const images = product.images?.length > 0 ? product.images : [];
+
+    const supportsSizes = variantConfig.supportsSizes !== false;
+    const supportsColors = variantConfig.supportsColors !== false;
+    const sizeOptions =
+        variantConfig.sizeOptions?.length > 0
+            ? variantConfig.sizeOptions
+            : DEFAULT_VARIANT_SETTINGS.sizeOptions;
 
     const reviewCount = product.reviewCount || 0;
     const sku = product.sku || "SZ-25061734";
@@ -34,6 +45,15 @@ export default function ProductView({ product, relatedProducts = [] }) {
     useEffect(() => {
         setQuantity(1);
     }, [selectedVariant.color, selectedVariant.size]);
+
+    useEffect(() => {
+        const base = product.variants?.[0] || {};
+        setSelectedVariant({
+            ...base,
+            size: supportsSizes ? base.size || sizeOptions[0] : "One Size",
+            color: supportsColors ? base.color || "Default" : "Default",
+        });
+    }, [product._id, supportsSizes, supportsColors, sizeOptions.join(",")]);
 
     useEffect(() => {
         if (quantity > maxStock) setQuantity(maxStock);
@@ -72,14 +92,70 @@ export default function ProductView({ product, relatedProducts = [] }) {
     const { salePrice, originalPrice } = product.pricing;
     const discountPercent = originalPrice > salePrice ? Math.round(((originalPrice - salePrice) / originalPrice) * 100) : 0;
 
+    const categoryLabel = product.category || "Products";
+
+    const updateZoomPanelPosition = useCallback((el) => {
+        if (!el || typeof window === "undefined") return;
+        const rect = el.getBoundingClientRect();
+        const gridEl = el.closest("[data-product-image-grid]");
+        const gridRect = gridEl?.getBoundingClientRect() ?? rect;
+        const panelWidth = Math.min(420, window.innerWidth * 0.32);
+        const panelHeight = rect.height;
+        const gap = 12;
+        const margin = 16;
+
+        // Sit in the gap between the image grid and product details
+        let left = gridRect.right + gap;
+        if (left + panelWidth > window.innerWidth - margin) {
+            left = gridRect.left - panelWidth - gap;
+        }
+
+        // Match vertical position of the hovered image
+        let top = rect.top;
+        if (top + panelHeight > window.innerHeight - margin) {
+            top = window.innerHeight - panelHeight - margin;
+        }
+        top = Math.max(margin, top);
+
+        setZoomPanel({ top, left, width: panelWidth, height: panelHeight });
+    }, []);
+
     const handleMouseMove = (e) => {
         const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
         const x = ((e.clientX - left) / width) * 100;
         const y = ((e.clientY - top) / height) * 100;
         setZoomPos({ x, y });
+        updateZoomPanelPosition(e.currentTarget);
     };
 
-    const categoryLabel = product.category || "Products";
+    const handleImageEnter = (idx, e) => {
+        hoveredCellRef.current = e.currentTarget;
+        setActiveImage(idx);
+        setShowZoom(true);
+        updateZoomPanelPosition(e.currentTarget);
+    };
+
+    const handleImageLeave = () => {
+        hoveredCellRef.current = null;
+        setShowZoom(false);
+    };
+
+    useEffect(() => {
+        if (!showZoom) return;
+
+        const reposition = () => {
+            if (hoveredCellRef.current) {
+                updateZoomPanelPosition(hoveredCellRef.current);
+            }
+        };
+
+        window.addEventListener("scroll", reposition, true);
+        window.addEventListener("resize", reposition);
+        return () => {
+            window.removeEventListener("scroll", reposition, true);
+            window.removeEventListener("resize", reposition);
+        };
+    }, [showZoom, updateZoomPanelPosition]);
 
     return (
         <div className="min-h-screen text-gray-800 pb-20">
@@ -91,70 +167,67 @@ export default function ProductView({ product, relatedProducts = [] }) {
                 <span className="text-black font-semibold truncate">{product.name}</span>
             </div>
 
-            <div className="max-w-[1600px] mx-auto px-4 md:px-8 flex flex-col lg:flex-row gap-8 relative">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-8 flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-12 relative">
 
-                {/* ================= LEFT COLUMN: IMAGES (Smaller Width 40%) ================= */}
-                <div className="w-full lg:w-[45%] flex gap-4">
-                    {/* Vert Thumbnails */}
-                    <div className="hidden md:flex flex-col gap-3 w-20 sticky top-24 h-fit">
-                        {images.map((img, idx) => (
-                            <div
-                                key={idx}
-                                onClick={() => setActiveImage(idx)}
-                                className={`relative w-20 h-24 cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${activeImage === idx ? 'border-black' : 'border-transparent hover:border-gray-200'}`}
-                            >
-                                <Image src={img} fill className="object-cover" alt="thumb" />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Main Image with Zoom */}
-                    <div
-                        className="flex-1 relative aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden cursor-crosshair group"
-                        onMouseEnter={() => setShowZoom(true)}
-                        onMouseLeave={() => setShowZoom(false)}
-                        onMouseMove={handleMouseMove}
-                    >
-                        <Image src={images[activeImage]} fill className="object-cover transition-transform duration-500" alt="Main" priority />
-
-                        {/* Mobile Zoom Hint */}
-                        <div className="absolute bottom-4 right-4 md:hidden bg-black/60 text-white text-xs px-2 py-1 rounded backdrop-blur-md">
-                            Tap to zoom
+                {/* Image grid — 2 columns (Sapphire-style) + hover zoom */}
+                <div className="w-full lg:w-[58%] lg:max-w-[720px] shrink-0">
+                    {images.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-1 sm:gap-1.5" data-product-image-grid>
+                            {images.map((img, idx) => (
+                                <div
+                                    key={`${img}-${idx}`}
+                                    className={`relative aspect-[3/4] bg-gray-100 overflow-hidden lg:cursor-crosshair ${
+                                        images.length === 1 ? "col-span-2 max-w-md mx-auto w-full" : ""
+                                    }`}
+                                    onMouseEnter={(e) => handleImageEnter(idx, e)}
+                                    onMouseLeave={handleImageLeave}
+                                    onMouseMove={handleMouseMove}
+                                >
+                                    <Image
+                                        src={img}
+                                        alt={`${product.name} — view ${idx + 1}`}
+                                        fill
+                                        className="object-cover"
+                                        sizes="(max-width: 1024px) 50vw, 360px"
+                                        priority={idx < 2}
+                                    />
+                                </div>
+                            ))}
                         </div>
-                    </div>
-
-                    {/* ZOOM MODAL (Portal-like absolute div) */}
-                    {showZoom && (
-                        <div
-                            className="hidden lg:block absolute left-[46%] top-0 w-[500px] h-[600px] bg-white border border-gray-200 shadow-2xl z-50 rounded-xl overflow-hidden pointer-events-none ml-4"
-                            style={{
-                                backgroundImage: `url(${images[activeImage]})`,
-                                backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
-                                backgroundSize: '200%' // Zoom level
-                            }}
-                        >
-                            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                Zoom View
-                            </div>
+                    ) : (
+                        <div className="aspect-[3/4] max-w-md bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
+                            No image available
                         </div>
                     )}
                 </div>
 
-
-                {/* ================= RIGHT COLUMN: DETAILS ================= */}
-                <div className="flex-1 max-w-2xl">
-                    <div className="sticky top-24">
+                {/* Product details — sticky on desktop */}
+                <div className="w-full lg:flex-1 lg:max-w-md">
+                    <div className="lg:sticky lg:top-24">
 
                         {/* Title & Badge */}
-                        <div className="mb-4">
-                            <div className="flex gap-2 mb-2">
-                                <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">Premium Selection</span>
-                                {discountPercent > 0 && <span className="bg-[#FA6338] text-white text-[10px] font-bold px-2 py-0.5 uppercase"> -{discountPercent}% OFF</span>}
-                            </div>
-                            <h1 className="text-2xl md:text-3xl font-playfair font-medium text-gray-900 leading-snug mb-2">
+                        <div className="mb-6 border-b border-gray-100 pb-6">
+                            <h1 className="text-xl md:text-2xl font-playfair font-medium text-gray-900 leading-snug mb-3 uppercase tracking-wide">
                                 {product.name}
                             </h1>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+                                <span className="text-xl font-bold text-gray-900">
+                                    Rs. {salePrice.toLocaleString()}
+                                </span>
+                                {originalPrice > salePrice && (
+                                    <>
+                                        <span className="text-gray-400 line-through text-base">
+                                            Rs. {originalPrice.toLocaleString()}
+                                        </span>
+                                        {discountPercent > 0 && (
+                                            <span className="text-[#FA6338] text-sm font-bold">
+                                                -{discountPercent}%
+                                            </span>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
                                 <button
                                     type="button"
                                     onClick={handleCopySku}
@@ -165,25 +238,28 @@ export default function ProductView({ product, relatedProducts = [] }) {
                                 </button>
                                 <ShareProductButton product={product} variant="pill" />
                                 <div className="flex items-center gap-1 text-[#FFB800]">
-                                    {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} fill="currentColor" />)}
-                                    <span className="text-blue-600 underline ml-1">({reviewCount} Reviews)</span>
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <Star key={i} size={12} fill="currentColor" />
+                                    ))}
+                                    <span className="text-gray-600 ml-1">({reviewCount} Reviews)</span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Price */}
-                        <div className="flex items-baseline gap-3 mb-6 p-4 bg-gray-50/50 rounded-xl border border-gray-100 backdrop-blur-sm">
-                            <span className="text-4xl font-bold font-playfair text-gray-900">
-                                Rs. {salePrice.toLocaleString()}
-                            </span>
-                            {originalPrice > salePrice && (
-                                <span className="text-gray-400 line-through text-lg">Rs. {originalPrice.toLocaleString()}</span>
-                            )}
-                        </div>
+                        {product.description && (
+                            <div className="mb-6 text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                                {product.description}
+                            </div>
+                        )}
 
                         {/* Interactive Elements (Colors/Sizes) */}
                         <div className="space-y-6 mb-8">
                             {/* Color */}
+                            {supportsColors &&
+                                product.variants?.length > 1 &&
+                                product.variants.some(
+                                    (v) => v.color && !["Default", "Mixed"].includes(v.color)
+                                ) && (
                             <div>
                                 <span className="text-sm font-bold block mb-2">Color: {selectedVariant.color || 'Default'}</span>
                                 <div className="flex gap-2">
@@ -195,23 +271,26 @@ export default function ProductView({ product, relatedProducts = [] }) {
                                             title={v.color}
                                         >
                                             <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
-                                                <Image src={images[i % images.length]} width={32} height={32} className="object-cover w-full h-full" alt="color" />
+                                                <Image src={images[i % images.length] || images[0]} width={32} height={32} className="object-cover w-full h-full" alt="color" />
                                             </div>
                                         </button>
                                     ))}
                                 </div>
                             </div>
+                            )}
 
                             {/* Size */}
+                            {supportsSizes && sizeOptions.length > 0 && (
                             <div>
                                 <div className="flex justify-between mb-2">
-                                    <span className="text-sm font-bold">Size: {selectedVariant.size || 'One Size'}</span>
-                                    <button className="text-xs underline text-gray-500">Size Guide</button>
+                                    <span className="text-sm font-bold">Size: {selectedVariant.size || sizeOptions[0]}</span>
+                                    <button type="button" className="text-xs underline text-gray-500">Size Guide</button>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {['XS', 'S', 'M', 'L', 'XL'].map(size => (
+                                    {sizeOptions.map(size => (
                                         <button
                                             key={size}
+                                            type="button"
                                             onClick={() => setSelectedVariant({ ...selectedVariant, size })}
                                             className={`px-4 py-2 border rounded-lg text-sm transition-all ${selectedVariant.size === size ? 'border-black bg-black text-white shadow-lg' : 'border-gray-200 hover:border-black'}`}
                                         >
@@ -220,6 +299,7 @@ export default function ProductView({ product, relatedProducts = [] }) {
                                     ))}
                                 </div>
                             </div>
+                            )}
 
                             {/* Quantity */}
                             <div>
@@ -271,9 +351,9 @@ export default function ProductView({ product, relatedProducts = [] }) {
                             <button
                                 onClick={handleAddToCart}
                                 disabled={!inStock}
-                                className="w-full bg-black text-white py-4 rounded-full font-bold text-lg hover:bg-gray-900 hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                                className="w-full bg-black text-white py-4 rounded-none font-bold text-sm uppercase tracking-widest hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
-                                <ShoppingBag size={20} /> Add to Cart
+                                <ShoppingBag size={18} /> {inStock ? "Add to Cart" : "Out of Stock"}
                             </button>
                             <button className="w-full border border-gray-300 py-3 rounded-full font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
                                 <Heart size={18} /> Add to Wishlist
@@ -313,6 +393,29 @@ export default function ProductView({ product, relatedProducts = [] }) {
                     </div>
                 </div>
             )}
+
+            {showZoom && images.length > 0 && typeof document !== "undefined" &&
+                createPortal(
+                    <div
+                        className="hidden lg:block fixed z-[100] bg-white border border-gray-200 shadow-2xl overflow-hidden pointer-events-none"
+                        style={{
+                            top: zoomPanel.top,
+                            left: zoomPanel.left,
+                            width: zoomPanel.width,
+                            height: zoomPanel.height,
+                            backgroundImage: `url(${images[activeImage]})`,
+                            backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                            backgroundSize: "200%",
+                            backgroundRepeat: "no-repeat",
+                        }}
+                    >
+                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            Zoom View
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
 
         </div>
     );

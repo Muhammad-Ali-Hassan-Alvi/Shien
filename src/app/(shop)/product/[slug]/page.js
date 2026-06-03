@@ -1,7 +1,13 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import Category from "@/app/lib/model/Category";
 import ProductView from "@/components/ProductView";
 import { notFound } from "next/navigation";
+import {
+    buildCategoryTree,
+    flattenCategoriesFlat,
+    resolveEffectiveVariantSettings,
+} from "@/app/lib/categoryUtils";
 
 // Fetch data logic - return a plain object (no ObjectId/buffer) for Client Components
 async function getProduct(slug) {
@@ -73,5 +79,16 @@ export default async function ProductPage({ params }) {
         4
     );
 
-    return <ProductView product={product} relatedProducts={relatedProducts} />;
+    const categories = await Category.find({}).lean();
+    const categoryTree = buildCategoryTree(categories);
+    const flatCategories = flattenCategoriesFlat(categoryTree);
+    const variantConfig = resolveEffectiveVariantSettings(flatCategories, product.category);
+
+    return (
+        <ProductView
+            product={product}
+            relatedProducts={relatedProducts}
+            variantConfig={variantConfig}
+        />
+    );
 }

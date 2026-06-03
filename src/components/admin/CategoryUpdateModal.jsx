@@ -1,18 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import Image from "next/image";
+import {
+    resolveEffectiveVariantSettings,
+    flattenCategoriesFlat,
+    DEFAULT_VARIANT_SETTINGS,
+} from "@/app/lib/categoryUtils";
 
-export default function CategoryUpdateModal({ isOpen, onClose, category, onUpdate, onRemoveProduct }) {
+export default function CategoryUpdateModal({
+    isOpen,
+    onClose,
+    category,
+    categoryTree = [],
+    onUpdate,
+    onRemoveProduct,
+}) {
     const [newName, setNewName] = useState("");
     const [showInNav, setShowInNav] = useState(true);
     const [isActive, setIsActive] = useState(true);
     const [isLine, setIsLine] = useState(false);
+    const [customVariantSettings, setCustomVariantSettings] = useState(false);
+    const [supportsSizes, setSupportsSizes] = useState(true);
+    const [supportsColors, setSupportsColors] = useState(true);
+    const [sizeOptionsText, setSizeOptionsText] = useState("XS, S, M, L, XL");
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
 
     const isRootCategory = !category?.parent;
+
+    const flatCategories = useMemo(
+        () => flattenCategoriesFlat(categoryTree),
+        [categoryTree]
+    );
+
+    const inheritedSettings = useMemo(() => {
+        if (!category || !flatCategories.length) {
+            return { ...DEFAULT_VARIANT_SETTINGS, inheritedFrom: "store default" };
+        }
+        if (!category.parent) {
+            return { ...DEFAULT_VARIANT_SETTINGS, inheritedFrom: "store default" };
+        }
+        const parent = flatCategories.find((c) => String(c._id) === String(category.parent));
+        if (!parent) return { ...DEFAULT_VARIANT_SETTINGS, inheritedFrom: "store default" };
+        return resolveEffectiveVariantSettings(flatCategories, parent.name);
+    }, [category, flatCategories]);
 
     useEffect(() => {
         if (isOpen && category) {
@@ -20,6 +53,12 @@ export default function CategoryUpdateModal({ isOpen, onClose, category, onUpdat
             setShowInNav(category.showInNav !== false);
             setIsActive(category.isActive !== false);
             setIsLine(category.isLine === true);
+            setCustomVariantSettings(category.customVariantSettings === true);
+            setSupportsSizes(category.supportsSizes !== false);
+            setSupportsColors(category.supportsColors !== false);
+            setSizeOptionsText(
+                (category.sizeOptions?.length ? category.sizeOptions : DEFAULT_VARIANT_SETTINGS.sizeOptions).join(", ")
+            );
             fetchProducts(category.name);
         }
     }, [isOpen, category]);
@@ -44,9 +83,54 @@ export default function CategoryUpdateModal({ isOpen, onClose, category, onUpdat
         if (isActive !== category.isActive) updates.isActive = isActive;
         if (isRootCategory && isLine !== category.isLine) updates.isLine = isLine;
 
+        if (customVariantSettings !== (category.customVariantSettings === true)) {
+            updates.customVariantSettings = customVariantSettings;
+        }
+        if (customVariantSettings) {
+            if (supportsSizes !== (category.supportsSizes !== false)) updates.supportsSizes = supportsSizes;
+            if (supportsColors !== (category.supportsColors !== false)) updates.supportsColors = supportsColors;
+            const parsedSizes = sizeOptionsText
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean);
+            const prevSizes = category.sizeOptions?.length
+                ? category.sizeOptions
+                : DEFAULT_VARIANT_SETTINGS.sizeOptions;
+            if (JSON.stringify(parsedSizes) !== JSON.stringify(prevSizes)) {
+                updates.sizeOptions = parsedSizes;
+            }
+        }
+
         if (Object.keys(updates).length === 0) return;
         await onUpdate(category._id, updates);
     };
+
+    const effectivePreview = customVariantSettings
+        ? {
+              supportsSizes,
+              supportsColors,
+              sizeOptions: sizeOptionsText
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              inheritedFrom: category?.name,
+          }
+        : inheritedSettings;
+
+    const hasChanges =
+        newName !== category?.name ||
+        showInNav !== (category?.showInNav !== false) ||
+        isActive !== (category?.isActive !== false) ||
+        (isRootCategory && isLine !== (category?.isLine === true)) ||
+        customVariantSettings !== (category?.customVariantSettings === true) ||
+        (customVariantSettings &&
+            (supportsSizes !== (category?.supportsSizes !== false) ||
+                supportsColors !== (category?.supportsColors !== false) ||
+                sizeOptionsText !==
+                    (category?.sizeOptions?.length
+                        ? category.sizeOptions
+                        : DEFAULT_VARIANT_SETTINGS.sizeOptions
+                    ).join(", ")));
 
     if (!isOpen) return null;
 
@@ -105,20 +189,95 @@ export default function CategoryUpdateModal({ isOpen, onClose, category, onUpdat
                                 </label>
                             )}
                         </div>
-
-                        <button
-                            onClick={handleSave}
-                            className="bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition disabled:opacity-50"
-                            disabled={
-                                newName === category?.name &&
-                                showInNav === (category?.showInNav !== false) &&
-                                isActive === (category?.isActive !== false) &&
-                                (!isRootCategory || isLine === (category?.isLine === true))
-                            }
-                        >
-                            Save Changes
-                        </button>
                     </div>
+
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
+                        <div>
+                            <h3 className="font-bold text-gray-900">Product page options</h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Controls size/color selectors on the shop product page. Subcategories inherit from the nearest
+                                parent with custom settings.
+                            </p>
+                        </div>
+
+                        <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={customVariantSettings}
+                                onChange={(e) => setCustomVariantSettings(e.target.checked)}
+                                className="rounded border-gray-300 mt-0.5"
+                            />
+                            <span className="text-sm font-medium text-gray-700">
+                                Use custom variant settings for this category
+                            </span>
+                        </label>
+
+                        {customVariantSettings ? (
+                            <div className="pl-6 space-y-3 border-l-2 border-indigo-200">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={supportsSizes}
+                                        onChange={(e) => setSupportsSizes(e.target.checked)}
+                                        className="rounded border-gray-300"
+                                    />
+                                    <span className="text-sm text-gray-700">Show size selector on product page</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={supportsColors}
+                                        onChange={(e) => setSupportsColors(e.target.checked)}
+                                        className="rounded border-gray-300"
+                                    />
+                                    <span className="text-sm text-gray-700">Show color selector on product page</span>
+                                </label>
+                                {supportsSizes && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-600 mb-1">
+                                            Size options (comma-separated)
+                                        </label>
+                                        <input
+                                            value={sizeOptionsText}
+                                            onChange={(e) => setSizeOptionsText(e.target.value)}
+                                            className="w-full border border-gray-300 p-2 rounded-lg text-sm outline-none focus:border-black"
+                                            placeholder="XS, S, M, L, XL"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                                Inheriting from{" "}
+                                <strong>{inheritedSettings.inheritedFrom || "store default"}</strong>:{" "}
+                                {inheritedSettings.supportsSizes ? "sizes" : "no sizes"},{" "}
+                                {inheritedSettings.supportsColors ? "colors" : "no colors"}
+                                {inheritedSettings.supportsSizes &&
+                                    ` (${(inheritedSettings.sizeOptions || []).join(", ")})`}
+                            </div>
+                        )}
+
+                        <div className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                            Shop preview for products in <strong>{category?.name}</strong>:{" "}
+                            {!effectivePreview.supportsSizes && !effectivePreview.supportsColors
+                                ? "quantity only (ideal for electronics)"
+                                : [
+                                      effectivePreview.supportsSizes ? "size picker" : null,
+                                      effectivePreview.supportsColors ? "color picker" : null,
+                                      "quantity",
+                                  ]
+                                      .filter(Boolean)
+                                      .join(" + ")}
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleSave}
+                        className="bg-black text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition disabled:opacity-50"
+                        disabled={!hasChanges}
+                    >
+                        Save Changes
+                    </button>
 
                     <div>
                         <h3 className="font-bold mb-3 flex items-center justify-between">

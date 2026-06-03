@@ -7,7 +7,7 @@ import { ShoppingBag, Search, User, Heart, ChevronDown, Menu, X } from "lucide-r
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import NotificationDropdown from "./NotificationDropdown";
 import CategoryListPanel from "./CategoryListPanel";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { productsLink } from "@/app/lib/navLinks";
 import { getLineCategories, getNavCategories, buildMegaMenuColumns } from "@/app/lib/categoryUtils";
 
@@ -18,6 +18,64 @@ const STATIC_NAV = [
 const SALE_NAV = { label: "Sale", href: productsLink({ sort: "price_asc" }), highlight: true, static: true };
 
 const MAX_PRIMARY_NAV = 3;
+
+function useIsNavActive(href) {
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const currentQs = searchParams.toString();
+    const current = currentQs ? `${pathname}?${currentQs}` : pathname;
+    return current === href;
+}
+
+function navLinkClassName({ highlight, isActive, isOpen }) {
+    const active = isActive || isOpen;
+    const base =
+        "py-2 flex items-center gap-1 text-sm whitespace-nowrap transition-colors border-b-2 pb-0.5";
+
+    if (highlight) {
+        return `${base} font-bold ${
+            active
+                ? "text-red-500 border-red-500"
+                : "text-red-500 border-transparent hover:border-red-500"
+        }`;
+    }
+
+    return `${base} ${
+        active
+            ? "text-indigo-600 border-indigo-600"
+            : "text-gray-700 border-transparent hover:text-indigo-600 hover:border-indigo-600"
+    }`;
+}
+
+function megaMenuLinkClassName(isActive, { bold = false } = {}) {
+    return `inline-block transition-colors border-b-2 pb-0.5 ${
+        bold ? "font-playfair font-bold text-sm" : "text-sm"
+    } ${
+        isActive
+            ? "text-indigo-600 border-indigo-600"
+            : "text-gray-900 border-transparent hover:text-indigo-600 hover:border-indigo-600"
+    }`;
+}
+
+function megaMenuSubLinkClassName(isActive) {
+    return `inline-block text-sm transition-colors border-b-2 pb-0.5 ${
+        isActive
+            ? "text-indigo-600 border-indigo-600 font-medium"
+            : "text-gray-500 border-transparent hover:text-indigo-600 hover:border-indigo-600"
+    }`;
+}
+
+function MegaMenuLink({ href, bold = false, className = "", children }) {
+    const isActive = useIsNavActive(href);
+    return (
+        <Link
+            href={href}
+            className={`${bold ? megaMenuLinkClassName(isActive, { bold: true }) : megaMenuSubLinkClassName(isActive)} ${className}`}
+        >
+            {children}
+        </Link>
+    );
+}
 
 function categoryToNavItem(category) {
     const megaColumns = buildMegaMenuColumns(category);
@@ -48,22 +106,16 @@ function MegaMenuPanel({ subCategories, open, onEnter, onLeave }) {
             >
                 {subCategories.map((sub) => (
                     <div key={sub.title} className="space-y-2 min-w-0">
-                        <Link
-                            href={productsLink({ category: sub.title })}
-                            className="font-playfair font-bold text-sm text-gray-900 border-b border-gray-100 pb-1.5 block hover:text-indigo-600 transition-colors"
-                        >
+                        <MegaMenuLink href={productsLink({ category: sub.title })} bold className="block">
                             {sub.title}
-                        </Link>
+                        </MegaMenuLink>
                         {sub.items.length > 0 && (
-                            <ul className="space-y-1">
+                            <ul className="space-y-2">
                                 {sub.items.map((subItem) => (
                                     <li key={subItem.name}>
-                                        <Link
-                                            href={productsLink({ category: subItem.name })}
-                                            className="text-gray-500 hover:text-indigo-600 block text-sm transition-colors"
-                                        >
+                                        <MegaMenuLink href={productsLink({ category: subItem.name })}>
                                             {subItem.name}
-                                        </Link>
+                                        </MegaMenuLink>
                                     </li>
                                 ))}
                             </ul>
@@ -78,6 +130,7 @@ function MegaMenuPanel({ subCategories, open, onEnter, onLeave }) {
 function NavMenuItem({ item }) {
     const [open, setOpen] = useState(false);
     const closeTimer = useRef(null);
+    const isActive = useIsNavActive(item.href);
 
     const keepOpen = useCallback(() => {
         if (closeTimer.current) {
@@ -99,9 +152,11 @@ function NavMenuItem({ item }) {
         <div className="relative" onMouseEnter={keepOpen} onMouseLeave={scheduleClose}>
             <Link
                 href={item.href}
-                className={`py-2 flex items-center gap-1 text-sm whitespace-nowrap transition-colors ${
-                    item.highlight ? "text-red-500 font-bold" : "text-gray-700 hover:text-indigo-600"
-                } ${open && !item.highlight ? "text-indigo-600" : ""}`}
+                className={navLinkClassName({
+                    highlight: item.highlight,
+                    isActive,
+                    isOpen: open && item.mega,
+                })}
             >
                 <span className="max-w-[140px] truncate" title={item.label}>
                     {item.label}
@@ -119,6 +174,22 @@ function NavMenuItem({ item }) {
                 />
             )}
         </div>
+    );
+}
+
+function MoreMenuLink({ href, children }) {
+    const isActive = useIsNavActive(href);
+    return (
+        <Link
+            href={href}
+            className={`block px-4 py-2.5 text-sm transition-colors border-b-2 mx-3 ${
+                isActive
+                    ? "text-indigo-600 border-indigo-600 font-medium"
+                    : "text-gray-700 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
+            }`}
+        >
+            {children}
+        </Link>
     );
 }
 
@@ -141,9 +212,7 @@ function MoreCategoriesMenu({ items }) {
         <div className="relative" onMouseEnter={keepOpen} onMouseLeave={scheduleClose}>
             <button
                 type="button"
-                className={`py-2 flex items-center gap-1 text-sm font-medium whitespace-nowrap transition-colors ${
-                    open ? "text-indigo-600" : "text-gray-700 hover:text-indigo-600"
-                }`}
+                className={navLinkClassName({ highlight: false, isActive: false, isOpen: open })}
             >
                 More
                 <ChevronDown size={14} className={`shrink-0 opacity-60 ${open ? "rotate-180" : ""}`} />
@@ -158,12 +227,7 @@ function MoreCategoriesMenu({ items }) {
                 <ul className="bg-white border border-gray-200 shadow-xl rounded-xl py-2 overflow-hidden">
                     {items.map((item) => (
                         <li key={item._id || item.label}>
-                            <Link
-                                href={item.href}
-                                className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
-                            >
-                                {item.label}
-                            </Link>
+                            <MoreMenuLink href={item.href}>{item.label}</MoreMenuLink>
                         </li>
                     ))}
                 </ul>
@@ -174,6 +238,14 @@ function MoreCategoriesMenu({ items }) {
 
 export default function Navbar() {
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const allProductsHref = productsLink();
+    const isAllProductsActive =
+        pathname === "/products" &&
+        !searchParams.get("category") &&
+        !searchParams.get("search") &&
+        !searchParams.get("sort");
     const { openCart } = useUIStore();
     const { items } = useCartStore();
     const [scrolled, setScrolled] = useState(false);
@@ -278,8 +350,12 @@ export default function Navbar() {
                         {!showSearch && (
                             <div className="hidden xl:flex flex-1 items-center justify-center gap-5 2xl:gap-7 min-w-0 px-2">
                                 <Link
-                                    href={productsLink()}
-                                    className="py-2 text-sm text-gray-700 hover:text-indigo-600 whitespace-nowrap shrink-0"
+                                    href={allProductsHref}
+                                    className={navLinkClassName({
+                                        highlight: false,
+                                        isActive: isAllProductsActive,
+                                        isOpen: false,
+                                    })}
                                 >
                                     All Products
                                 </Link>

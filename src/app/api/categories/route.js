@@ -84,7 +84,8 @@ export async function POST(req) {
         if (authError) return authError;
 
         await connectDB();
-        const { name, image, description, parentId, order, showInNav, isActive, isLine } = await req.json();
+        const { name, image, description, parentId, order, showInNav, isActive, isLine,
+            customVariantSettings, supportsSizes, supportsColors, sizeOptions } = await req.json();
 
         if (!name?.trim()) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -109,6 +110,10 @@ export async function POST(req) {
             showInNav: showInNav ?? true,
             isActive: isActive ?? true,
             isLine: parentId ? false : isLine ?? false,
+            ...(customVariantSettings !== undefined && { customVariantSettings: !!customVariantSettings }),
+            ...(supportsSizes !== undefined && { supportsSizes: !!supportsSizes }),
+            ...(supportsColors !== undefined && { supportsColors: !!supportsColors }),
+            ...(Array.isArray(sizeOptions) && { sizeOptions: sizeOptions.filter(Boolean) }),
         });
 
         return NextResponse.json({ success: true, category }, { status: 201 });
@@ -127,7 +132,8 @@ export async function PUT(req) {
 
         await connectDB();
         const body = await req.json();
-        const { id, name, description, image, parentId, order, showInNav, isActive, isLine } = body;
+        const { id, name, description, image, parentId, order, showInNav, isActive, isLine,
+            customVariantSettings, supportsSizes, supportsColors, sizeOptions } = body;
 
         if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
@@ -163,6 +169,16 @@ export async function PUT(req) {
         if (isActive !== undefined) fieldsToUpdate.isActive = isActive;
         if (isLine !== undefined) {
             fieldsToUpdate.isLine = parentId !== undefined && parentId ? false : isLine;
+        }
+        if (customVariantSettings !== undefined) {
+            fieldsToUpdate.customVariantSettings = !!customVariantSettings;
+        }
+        if (supportsSizes !== undefined) fieldsToUpdate.supportsSizes = !!supportsSizes;
+        if (supportsColors !== undefined) fieldsToUpdate.supportsColors = !!supportsColors;
+        if (sizeOptions !== undefined) {
+            fieldsToUpdate.sizeOptions = Array.isArray(sizeOptions)
+                ? sizeOptions.map((s) => String(s).trim()).filter(Boolean)
+                : [];
         }
 
         const updated = await Category.findByIdAndUpdate(id, fieldsToUpdate, { new: true });

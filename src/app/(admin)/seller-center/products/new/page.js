@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import StyledSelect from "@/components/ui/StyledSelect";
-import { buildCategorySelectOptions } from "@/app/lib/categoryUtils";
+import {
+    buildCategorySelectOptions,
+    flattenCategoriesFlat,
+    resolveEffectiveVariantSettings,
+    buildDefaultProductVariant,
+    formatVariantSettingsLabel,
+} from "@/app/lib/categoryUtils";
 
 export default function NewProductPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [categoryOptions, setCategoryOptions] = useState([]);
+    const [categoryTree, setCategoryTree] = useState([]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -37,10 +44,7 @@ export default function NewProductPage() {
                 if (json.categories) {
                     const opts = buildCategorySelectOptions(json.categories);
                     setCategoryOptions(opts);
-                    setFormData((prev) => ({
-                        ...prev,
-                        category: prev.category || opts[0]?.value || "",
-                    }));
+                    setCategoryTree(json.categories);
                 }
             } catch (err) {
                 console.error("Failed to load categories");
@@ -65,8 +69,19 @@ export default function NewProductPage() {
         });
     }, [formData.baseCost, formData.markupPercentage, formData.discountPercentage]);
 
+    const flatCategories = useMemo(() => flattenCategoriesFlat(categoryTree), [categoryTree]);
+    const variantConfig = useMemo(
+        () => resolveEffectiveVariantSettings(flatCategories, formData.category),
+        [flatCategories, formData.category]
+    );
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleCategoryChange = (e) => {
+        const value = e.target.value;
+        setFormData((prev) => ({ ...prev, category: value }));
     };
 
     const handleImageUpload = async (e) => {
@@ -99,11 +114,17 @@ export default function NewProductPage() {
         e.preventDefault();
         setLoading(true);
 
+        if (!formData.category?.trim()) {
+            toast.error("Please select a category");
+            setLoading(false);
+            return;
+        }
+
         try {
             const payload = {
                 name: formData.name,
                 slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(),
-                category: formData.category,
+                category: formData.category.trim(),
                 description: "Premium Quality Fabric", // Placeholder
                 pricing: {
                     baseCost: Number(formData.baseCost),
@@ -111,9 +132,7 @@ export default function NewProductPage() {
                     salePrice: pricingPreview.salePrice,
                     discountLabel: `${formData.discountPercentage}% OFF`
                 },
-                variants: [
-                    { color: "Mixed", size: "M", stock: Number(formData.stock) }
-                ],
+                variants: buildDefaultProductVariant(formData.stock, variantConfig),
                 images: formData.images,
                 isDirtyPriced: true
             };
@@ -166,9 +185,9 @@ export default function NewProductPage() {
                         <StyledSelect
                             name="category"
                             value={formData.category}
-                            onChange={handleChange}
+                            onChange={handleCategoryChange}
                             options={categoryOptions}
-                            placeholder="Select category or subcategory"
+                            placeholder="Choose category…"
                             required
                             aria-label="Product category"
                             menuClassName="max-h-64 overflow-y-auto"
@@ -176,11 +195,31 @@ export default function NewProductPage() {
                         {categoryOptions.length === 0 && (
                             <p className="text-xs text-red-500 mt-1">No categories found. Create one first.</p>
                         )}
+                        {formData.category && (
+                            <>
+                                <p className="text-xs text-gray-600 mt-2">
+                                    Selected category: <strong>{formData.category}</strong>
+                                </p>
+                                <p className="text-xs text-indigo-600 mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                                    Shop options:{" "}
+                                    <strong>{formatVariantSettingsLabel(variantConfig)}</strong>
+                                    {!variantConfig.supportsSizes && !variantConfig.supportsColors
+                                        ? " — customers only pick quantity."
+                                        : variantConfig.inheritedFrom
+                                          ? ` (from ${variantConfig.inheritedFrom})`
+                                          : ""}
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-bold mb-2">Stock</label>
+                            <label className="block text-sm font-bold mb-2">
+                                {variantConfig.supportsSizes || variantConfig.supportsColors
+                                    ? "Stock (default variant)"
+                                    : "Stock quantity"}
+                            </label>
                             <input
                                 type="number"
                                 name="stock"

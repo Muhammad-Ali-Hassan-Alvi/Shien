@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import Image from "next/image";
 import { Upload, ArrowLeft } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import StyledSelect from "@/components/ui/StyledSelect";
-import { buildCategorySelectOptions } from "@/app/lib/categoryUtils";
+import {
+    buildCategorySelectOptions,
+    flattenCategoriesFlat,
+    resolveEffectiveVariantSettings,
+    buildDefaultProductVariant,
+    formatVariantSettingsLabel,
+} from "@/app/lib/categoryUtils";
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -17,6 +23,7 @@ export default function EditProductPage() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [categoryOptions, setCategoryOptions] = useState([]);
+    const [categoryTree, setCategoryTree] = useState([]);
 
     const [formData, setFormData] = useState({
         name: "",
@@ -44,6 +51,7 @@ export default function EditProductPage() {
                 const catJson = await catRes.json();
                 if (catJson.categories) {
                     setCategoryOptions(buildCategorySelectOptions(catJson.categories));
+                    setCategoryTree(catJson.categories);
                 }
 
                 // Product
@@ -131,8 +139,18 @@ export default function EditProductPage() {
         });
     }, [formData.baseCost, formData.markupPercentage, formData.discountPercentage, loading]);
 
+    const flatCategories = useMemo(() => flattenCategoriesFlat(categoryTree), [categoryTree]);
+    const variantConfig = useMemo(
+        () => resolveEffectiveVariantSettings(flatCategories, formData.category),
+        [flatCategories, formData.category]
+    );
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleCategoryChange = (e) => {
+        setFormData((prev) => ({ ...prev, category: e.target.value }));
     };
 
     const handleImageUpload = async (e) => {
@@ -165,7 +183,7 @@ export default function EditProductPage() {
         try {
             const payload = {
                 name: formData.name,
-                category: formData.category,
+                category: formData.category.trim(),
                 description: "Premium Quality Fabric",
                 pricing: {
                     baseCost: Number(formData.baseCost),
@@ -173,9 +191,7 @@ export default function EditProductPage() {
                     salePrice: pricingPreview.salePrice,
                     discountLabel: `${formData.discountPercentage}% OFF`
                 },
-                variants: [
-                    { color: "Mixed", size: "M", stock: Number(formData.stock) }
-                ],
+                variants: buildDefaultProductVariant(formData.stock, variantConfig),
                 images: formData.images,
                 isDirtyPriced: true
             };
@@ -223,17 +239,37 @@ export default function EditProductPage() {
                         <StyledSelect
                             name="category"
                             value={formData.category}
-                            onChange={handleChange}
+                            onChange={handleCategoryChange}
                             options={categoryOptions}
-                            placeholder="Select category or subcategory"
+                            placeholder="Choose category…"
                             required
                             aria-label="Product category"
                             menuClassName="max-h-64 overflow-y-auto"
                         />
+                        {formData.category && (
+                            <>
+                                <p className="text-xs text-gray-600 mt-2">
+                                    Selected category: <strong>{formData.category}</strong>
+                                </p>
+                                <p className="text-xs text-indigo-600 mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                                    Shop options:{" "}
+                                    <strong>{formatVariantSettingsLabel(variantConfig)}</strong>
+                                    {!variantConfig.supportsSizes && !variantConfig.supportsColors
+                                        ? " — customers only pick quantity."
+                                        : variantConfig.inheritedFrom
+                                          ? ` (from ${variantConfig.inheritedFrom})`
+                                          : ""}
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-bold mb-2">Stock</label>
+                        <label className="block text-sm font-bold mb-2">
+                            {variantConfig.supportsSizes || variantConfig.supportsColors
+                                ? "Stock (default variant)"
+                                : "Stock quantity"}
+                        </label>
                         <input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full border p-3 rounded" />
                     </div>
 

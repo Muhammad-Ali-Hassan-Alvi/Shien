@@ -51,6 +51,7 @@ function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
                                     type="button"
                                     onClick={() => toggle(node._id)}
                                     className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 shrink-0"
+                                    aria-label={isOpen ? "Collapse" : "Expand"}
                                 >
                                     {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                 </button>
@@ -59,7 +60,13 @@ function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
                             )}
                             <button
                                 type="button"
-                                onClick={() => onSelect(node.name)}
+                                onClick={() => {
+                                    if (hasChildren) {
+                                        toggle(node._id);
+                                        return;
+                                    }
+                                    onSelect(node.name);
+                                }}
                                 className={`flex-1 text-left py-1.5 px-2 rounded-md text-sm transition-colors ${
                                     isActive
                                         ? "bg-gray-900 text-white font-semibold"
@@ -70,12 +77,26 @@ function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
                             </button>
                         </div>
                         {hasChildren && isOpen && (
-                            <CategoryTreeFilter
-                                nodes={node.children}
-                                activeCategory={activeCategory}
-                                onSelect={onSelect}
-                                depth={depth + 1}
-                            />
+                            <div className="mt-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect(node.name)}
+                                    className={`block w-full text-left py-1.5 px-2 rounded-md text-xs font-semibold transition-colors mb-1 ${
+                                        isActive
+                                            ? "text-gray-900"
+                                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                                    }`}
+                                    style={{ paddingLeft: `${depth * 12 + 28}px` }}
+                                >
+                                    All {node.name}
+                                </button>
+                                <CategoryTreeFilter
+                                    nodes={node.children}
+                                    activeCategory={activeCategory}
+                                    onSelect={onSelect}
+                                    depth={depth + 1}
+                                />
+                            </div>
                         )}
                     </li>
                 );

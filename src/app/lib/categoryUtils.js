@@ -1,3 +1,5 @@
+import { productsLink } from "@/app/lib/navLinks";
+
 /** Match categories that are active (includes legacy docs without isActive field). */
 export const ACTIVE_CATEGORY_FILTER = { isActive: { $ne: false } };
 
@@ -171,7 +173,90 @@ export function buildMegaMenuColumns(parentNode) {
     });
 }
 
-/** Build grouped sections for category list panel (Sapphire-style). */
+/** Default product options when no category overrides exist (clothing-style). */
+export const DEFAULT_VARIANT_SETTINGS = {
+    supportsSizes: true,
+    supportsColors: true,
+    sizeOptions: ["XS", "S", "M", "L", "XL"],
+    inheritedFrom: null,
+};
+
+/** Flat list from a category tree (strips children, keeps parent ref). */
+export function flattenCategoriesFlat(tree) {
+    const result = [];
+    const walk = (nodes) => {
+        for (const node of nodes || []) {
+            const { children, depth, ...cat } = node;
+            void depth;
+            result.push(cat);
+            if (children?.length) walk(children);
+        }
+    };
+    walk(tree);
+    return result;
+}
+
+/**
+ * Resolve effective size/color rules for a category name.
+ * Walks up the tree until a category with customVariantSettings is found.
+ */
+export function resolveEffectiveVariantSettings(flatCategories, categoryName) {
+    if (!categoryName || !flatCategories?.length) {
+        return { ...DEFAULT_VARIANT_SETTINGS };
+    }
+
+    const byId = new Map(flatCategories.map((c) => [String(c._id), c]));
+    let node = flatCategories.find(
+        (c) => c.name?.toLowerCase() === categoryName.toLowerCase()
+    );
+    if (!node) {
+        return { ...DEFAULT_VARIANT_SETTINGS };
+    }
+
+    while (node) {
+        if (node.customVariantSettings === true) {
+            return {
+                supportsSizes: node.supportsSizes !== false,
+                supportsColors: node.supportsColors !== false,
+                sizeOptions:
+                    node.sizeOptions?.length > 0
+                        ? node.sizeOptions
+                        : DEFAULT_VARIANT_SETTINGS.sizeOptions,
+                inheritedFrom: node.name,
+            };
+        }
+        const parentId = node.parent ? String(node.parent) : null;
+        node = parentId ? byId.get(parentId) : null;
+    }
+
+    return { ...DEFAULT_VARIANT_SETTINGS };
+}
+
+/** Build a single default variant row for admin product save. */
+export function buildDefaultProductVariant(stock, variantConfig) {
+    const cfg = variantConfig || DEFAULT_VARIANT_SETTINGS;
+    return [
+        {
+            color: cfg.supportsColors ? "Default" : "Default",
+            size: cfg.supportsSizes
+                ? cfg.sizeOptions?.[0] || "M"
+                : "One Size",
+            stock: Math.max(0, Number(stock) || 0),
+        },
+    ];
+}
+
+/** Short label for admin category tree badges. */
+export function formatVariantSettingsLabel(settings) {
+    if (!settings) return "Sizes & colors";
+    const parts = [];
+    if (settings.supportsSizes) parts.push("Sizes");
+    if (settings.supportsColors) parts.push("Colors");
+    if (!parts.length) return "Stock only";
+    return parts.join(" + ");
+}
+
+/** Build right-panel groups for a line or department node. */
 export function getGroupsForDepartment(dept) {
     if (!dept) return [];
 
@@ -190,4 +275,92 @@ export function getGroupsForDepartment(dept) {
     }
 
     return [{ title: "Shop", items: children }];
+}
+
+/** Full Sapphire-style hamburger sidebar for the active department tab. */
+export function buildHamburgerSidebarItems(lineName) {
+    if (!lineName) return [];
+    return [
+        {
+            id: "shop-sale",
+            type: "link",
+            label: "Shop Sale",
+            href: productsLink({ category: lineName, sort: "price_asc" }),
+            highlight: true,
+        },
+        { id: "shop-by-category", type: "panel", label: "Shop by Category" },
+        { id: "shop-by-discount", type: "panel", label: "Shop by Discount" },
+        {
+            id: "under-2000",
+            type: "link",
+            label: "Under Rs. 2,000",
+            href: productsLink({ category: lineName, maxPrice: 2000 }),
+        },
+        {
+            id: "under-3000",
+            type: "link",
+            label: "Under Rs. 3,000",
+            href: productsLink({ category: lineName, maxPrice: 3000 }),
+        },
+        {
+            id: "under-5000",
+            type: "link",
+            label: "Under Rs. 5,000",
+            href: productsLink({ category: lineName, maxPrice: 5000 }),
+        },
+    ];
+}
+
+/** Right-panel content when a sidebar panel item is selected. */
+export function getHamburgerPanelContent(menuId, lineNode) {
+    if (!lineNode?.name) return { title: "", groups: [] };
+
+    const lineName = lineNode.name;
+    const children = lineNode.children || [];
+
+    if (menuId === "shop-by-category") {
+        if (children.length > 0) {
+            return {
+                title: "Shop by Category",
+                groups: getGroupsForDepartment(lineNode),
+            };
+        }
+        return {
+            title: "Shop by Category",
+            groups: [
+                {
+                    title: lineName,
+                    items: [{ name: lineName, _id: lineNode._id }],
+                },
+            ],
+        };
+    }
+
+    if (menuId === "shop-by-discount") {
+        return {
+            title: "Shop by Discount",
+            groups: [
+                {
+                    title: "Discount ranges",
+                    items: [
+                        {
+                            name: "Up to 25% Off",
+                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                        },
+                        {
+                            name: "Up to 40% Off",
+                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                        },
+                        {
+                            name: "All Sale Items",
+                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                            highlight: true,
+                        },
+                    ],
+                },
+            ],
+        };
+    }
+
+    return { title: "", groups: [] };
 }
