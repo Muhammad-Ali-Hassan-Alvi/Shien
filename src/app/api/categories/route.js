@@ -50,6 +50,11 @@ export async function GET(req) {
         const navOnly = searchParams.get("nav") === "true";
         const adminView = searchParams.get("admin") === "true";
 
+        if (adminView) {
+            const { error: authError } = await requireAdmin();
+            if (authError) return authError;
+        }
+
         const filter = adminView ? {} : { ...ACTIVE_CATEGORY_FILTER };
 
         let categories = await Category.find(filter)

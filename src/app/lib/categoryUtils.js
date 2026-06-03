@@ -285,7 +285,7 @@ export function buildHamburgerSidebarItems(lineName) {
             id: "shop-sale",
             type: "link",
             label: "Shop Sale",
-            href: productsLink({ category: lineName, sort: "price_asc" }),
+            href: productsLink({ category: lineName, sort: "sale" }),
             highlight: true,
         },
         { id: "shop-by-category", type: "panel", label: "Shop by Category" },
@@ -345,15 +345,15 @@ export function getHamburgerPanelContent(menuId, lineNode) {
                     items: [
                         {
                             name: "Up to 25% Off",
-                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                            href: productsLink({ category: lineName, sort: "sale", maxDiscount: 25 }),
                         },
                         {
                             name: "Up to 40% Off",
-                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                            href: productsLink({ category: lineName, sort: "sale", maxDiscount: 40 }),
                         },
                         {
                             name: "All Sale Items",
-                            href: productsLink({ category: lineName, sort: "price_asc" }),
+                            href: productsLink({ category: lineName, sort: "sale" }),
                             highlight: true,
                         },
                     ],

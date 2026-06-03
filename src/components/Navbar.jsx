@@ -15,7 +15,7 @@ const STATIC_NAV = [
     { label: "New In", href: productsLink({ sort: "new" }), static: true },
 ];
 
-const SALE_NAV = { label: "Sale", href: productsLink({ sort: "price_asc" }), highlight: true, static: true };
+const SALE_NAV = { label: "Sale", href: productsLink({ sort: "sale" }), highlight: true, static: true };
 
 const MAX_PRIMARY_NAV = 3;
 

@@ -4,10 +4,14 @@ import Question from "@/app/lib/model/Question";
 import Contact from "@/app/lib/model/Contact";
 import Product from "@/app/lib/model/Product";
 import { createUserNotification } from "@/lib/notificationService";
+import { requireAdmin } from "@/app/lib/requireAdmin";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { searchParams } = new URL(req.url);
         const type = searchParams.get("type");
@@ -36,6 +40,9 @@ export async function GET(req) {
 
 export async function PUT(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { searchParams } = new URL(req.url);
         const type = searchParams.get("type");

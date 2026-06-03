@@ -1,5 +1,6 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import { buildSaleQuery } from "@/app/lib/productUtils";
 import { getHomepageFeaturedProducts } from "@/app/lib/homepageFeatured";
 import ProductGrid from "@/components/ProductGrid";
 import CategoryIcons from "@/components/CategoryIcons";
@@ -16,7 +17,8 @@ async function getInitialProducts(searchParams) {
     if (category) query.category = new RegExp(category, "i");
 
     let sortOption = { createdAt: -1 };
-    if (sort === "bestsellers") sortOption = { "pricing.salePrice": 1 };
+    if (sort === "bestsellers") sortOption = { reviewCount: -1, averageRating: -1, createdAt: -1 };
+    if (sort === "sale") Object.assign(query, buildSaleQuery());
     if (sort === "price_asc") sortOption = { "pricing.salePrice": 1 };
     if (sort === "price_desc") sortOption = { "pricing.salePrice": -1 };
 

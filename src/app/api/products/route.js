@@ -10,6 +10,13 @@ import {
     slugify,
 } from "@/app/lib/categoryUtils";
 import { createManyUserNotifications, notifyLowStockIfNeeded } from "@/lib/notificationService";
+import {
+    buildSaleQuery,
+} from "@/app/lib/productUtils";
+import {
+    sanitizeProductPayload,
+    validateCategoryName,
+} from "@/app/lib/productServerUtils";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/lib/requireAdmin";
 
@@ -52,12 +59,14 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get("id");
 
-        // Single Product Fetch
+        // Single Product Fetch (admin)
         if (id) {
+            const { error: authError } = await requireAdmin();
+            if (authError) return authError;
+
             const product = await Product.findById(id).lean();
             if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
-            // Add wishlist count for single product
             const wishlistCount = await User.countDocuments({ wishlist: id });
             return NextResponse.json({ product: { ...product, wishlistCount } });
         }
@@ -66,14 +75,17 @@ export async function GET(req) {
         const limit = parseInt(searchParams.get("limit") || "10");
         const category = searchParams.get("category");
         const sort = searchParams.get("sort");
-        const includeStats = searchParams.get("includeStats"); // Flag for admin
-
+        const includeStats = searchParams.get("includeStats");
         const search = searchParams.get("search");
+        const archived = searchParams.get("archived");
 
+        if (includeStats === "true" || archived === "true") {
+            const { error: authError } = await requireAdmin();
+            if (authError) return authError;
+        }
         const skip = (page - 1) * limit;
 
         const query = {};
-        const archived = searchParams.get("archived");
         const isAdminList = includeStats === "true";
 
         if (isAdminList) {
@@ -127,11 +139,24 @@ export async function GET(req) {
             query["pricing.salePrice"] = priceFilter;
         }
 
+        const minDiscountParam = searchParams.get("minDiscount");
+        const maxDiscountParam = searchParams.get("maxDiscount");
+
         let sortOption = { createdAt: -1, _id: -1 };
-        if (sort === 'bestsellers') sortOption = { "pricing.salePrice": 1, _id: -1 };
-        if (sort === 'new') sortOption = { createdAt: -1, _id: -1 };
-        if (sort === 'price_asc') sortOption = { "pricing.salePrice": 1, _id: -1 };
-        if (sort === 'price_desc') sortOption = { "pricing.salePrice": -1, _id: -1 };
+        if (sort === "sale") {
+            Object.assign(query, buildSaleQuery({ minDiscount: minDiscountParam, maxDiscount: maxDiscountParam }));
+            sortOption = { "pricing.salePrice": 1, _id: -1 };
+        } else if (minDiscountParam || maxDiscountParam) {
+            Object.assign(query, buildSaleQuery({ minDiscount: minDiscountParam, maxDiscount: maxDiscountParam }));
+        } else if (sort === "bestsellers") {
+            sortOption = { reviewCount: -1, averageRating: -1, createdAt: -1, _id: -1 };
+        } else if (sort === "new") {
+            sortOption = { createdAt: -1, _id: -1 };
+        } else if (sort === "price_asc") {
+            sortOption = { "pricing.salePrice": 1, _id: -1 };
+        } else if (sort === "price_desc") {
+            sortOption = { "pricing.salePrice": -1, _id: -1 };
+        }
 
         let products = await Product.find(query)
             .sort(sortOption)
@@ -224,12 +249,20 @@ export async function POST(req) {
             return NextResponse.json({ error: "Name and Slug are required" }, { status: 400 });
         }
 
-        const existing = await Product.findOne({ slug: body.slug });
+        const catCheck = await validateCategoryName(body.category);
+        if (!catCheck.valid) {
+            return NextResponse.json({ error: catCheck.error }, { status: 400 });
+        }
+
+        const payload = sanitizeProductPayload(body);
+        payload.category = catCheck.name;
+
+        const existing = await Product.findOne({ slug: payload.slug });
         if (existing) {
             return NextResponse.json({ error: "Product with this slug already exists" }, { status: 400 });
         }
 
-        const newProduct = new Product(body);
+        const newProduct = new Product(payload);
         await newProduct.save();
 
         return NextResponse.json({ success: true, product: newProduct }, { status: 201 });
@@ -258,8 +291,21 @@ export async function PUT(req) {
         // Calculate old stock (sum of variants or totalStock field if exists - assuming variants approach)
         const oldStock = oldProduct.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;
 
-        // Update Product
-        const updatedProduct = await Product.findByIdAndUpdate(id, body, { new: true });
+        const updates = sanitizeProductPayload(body, { allowArchive: true });
+
+        if (updates.category !== undefined) {
+            const catCheck = await validateCategoryName(updates.category);
+            if (!catCheck.valid) {
+                return NextResponse.json({ error: catCheck.error }, { status: 400 });
+            }
+            updates.category = catCheck.name;
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+        }
+
+        const updatedProduct = await Product.findByIdAndUpdate(id, updates, { new: true });
 
         // Calculate new stock
         const newStock = updatedProduct.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0;

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useWishlistStore } from "@/store/useWishlistStore";
 import { Star, Truck, ShieldCheck, RefreshCcw, Heart, ChevronRight, Copy, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -14,12 +15,19 @@ import ProductReviews from "./ProductReviews";
 import ProductQA from "./ProductQA";
 import ShareProductButton from "./ShareProductButton";
 import { DEFAULT_VARIANT_SETTINGS } from "@/app/lib/categoryUtils";
+import { findMatchingVariant } from "@/app/lib/productUtils";
 
 export default function ProductView({ product, relatedProducts = [], variantConfig = DEFAULT_VARIANT_SETTINGS }) {
     const { addItem } = useCartStore();
     const { openCart } = useUIStore();
+    const { toggleWishlist, isInWishlist } = useWishlistStore();
 
-    const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0] || {});
+    const initialVariant = findMatchingVariant(product.variants, {
+        color: product.variants?.[0]?.color,
+        size: product.variants?.[0]?.size,
+    });
+
+    const [selectedVariant, setSelectedVariant] = useState(initialVariant);
     const [quantity, setQuantity] = useState(1);
     const [activeImage, setActiveImage] = useState(0);
     const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
@@ -37,10 +45,11 @@ export default function ProductView({ product, relatedProducts = [], variantConf
             : DEFAULT_VARIANT_SETTINGS.sizeOptions;
 
     const reviewCount = product.reviewCount || 0;
-    const sku = product.sku || "SZ-25061734";
+    const averageRating = product.averageRating || 0;
+    const sku = product.slug?.toUpperCase() || product._id?.slice(-8)?.toUpperCase() || "N/A";
 
-    const maxStock = selectedVariant?.stock > 0 ? selectedVariant.stock : 99;
-    const inStock = selectedVariant?.stock === undefined || selectedVariant?.stock > 0;
+    const maxStock = Math.max(0, selectedVariant?.stock ?? 0);
+    const inStock = maxStock > 0;
 
     useEffect(() => {
         setQuantity(1);
@@ -48,12 +57,27 @@ export default function ProductView({ product, relatedProducts = [], variantConf
 
     useEffect(() => {
         const base = product.variants?.[0] || {};
-        setSelectedVariant({
-            ...base,
-            size: supportsSizes ? base.size || sizeOptions[0] : "One Size",
+        const next = findMatchingVariant(product.variants, {
             color: supportsColors ? base.color || "Default" : "Default",
+            size: supportsSizes ? base.size || sizeOptions[0] : "One Size",
         });
+        setSelectedVariant(next);
     }, [product._id, supportsSizes, supportsColors, sizeOptions.join(",")]);
+
+    const pickVariant = (partial) => {
+        setSelectedVariant(
+            findMatchingVariant(product.variants, {
+                color: partial.color ?? selectedVariant.color,
+                size: partial.size ?? selectedVariant.size,
+            })
+        );
+    };
+
+    const handleWishlist = () => {
+        toggleWishlist(product);
+    };
+
+    const wishlisted = isInWishlist(product._id);
 
     useEffect(() => {
         if (quantity > maxStock) setQuantity(maxStock);
@@ -239,9 +263,16 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                                 <ShareProductButton product={product} variant="pill" />
                                 <div className="flex items-center gap-1 text-[#FFB800]">
                                     {[1, 2, 3, 4, 5].map((i) => (
-                                        <Star key={i} size={12} fill="currentColor" />
+                                        <Star
+                                            key={i}
+                                            size={12}
+                                            fill={i <= Math.round(averageRating) ? "currentColor" : "none"}
+                                            className={i <= Math.round(averageRating) ? "" : "text-gray-300"}
+                                        />
                                     ))}
-                                    <span className="text-gray-600 ml-1">({reviewCount} Reviews)</span>
+                                    <span className="text-gray-600 ml-1">
+                                        {averageRating > 0 ? averageRating.toFixed(1) : "No ratings"} ({reviewCount} Reviews)
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -266,7 +297,8 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                                     {product.variants?.map((v, i) => (
                                         <button
                                             key={i}
-                                            onClick={() => setSelectedVariant(v)}
+                                            type="button"
+                                            onClick={() => pickVariant({ color: v.color })}
                                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${selectedVariant.color === v.color ? 'border-black scale-110' : 'border-transparent hover:border-gray-300'}`}
                                             title={v.color}
                                         >
@@ -284,14 +316,16 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                             <div>
                                 <div className="flex justify-between mb-2">
                                     <span className="text-sm font-bold">Size: {selectedVariant.size || sizeOptions[0]}</span>
-                                    <button type="button" className="text-xs underline text-gray-500">Size Guide</button>
+                                    <Link href="/size-guide" className="text-xs underline text-gray-500 hover:text-black">
+                                        Size Guide
+                                    </Link>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {sizeOptions.map(size => (
                                         <button
                                             key={size}
                                             type="button"
-                                            onClick={() => setSelectedVariant({ ...selectedVariant, size })}
+                                            onClick={() => pickVariant({ size })}
                                             className={`px-4 py-2 border rounded-lg text-sm transition-all ${selectedVariant.size === size ? 'border-black bg-black text-white shadow-lg' : 'border-gray-200 hover:border-black'}`}
                                         >
                                             {size}
@@ -334,9 +368,9 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                                             <Plus size={16} />
                                         </button>
                                     </div>
-                                    {selectedVariant?.stock > 0 && (
+                                    {inStock && (
                                         <span className="text-xs text-gray-500">
-                                            {selectedVariant.stock} available
+                                            {maxStock} available
                                         </span>
                                     )}
                                     {!inStock && (
@@ -355,8 +389,16 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                             >
                                 <ShoppingBag size={18} /> {inStock ? "Add to Cart" : "Out of Stock"}
                             </button>
-                            <button className="w-full border border-gray-300 py-3 rounded-full font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-                                <Heart size={18} /> Add to Wishlist
+                            <button
+                                type="button"
+                                onClick={handleWishlist}
+                                className={`w-full border py-3 rounded-full font-bold transition-colors flex items-center justify-center gap-2 ${
+                                    wishlisted
+                                        ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                                        : "border-gray-300 hover:bg-gray-50"
+                                }`}
+                            >
+                                <Heart size={18} fill={wishlisted ? "currentColor" : "none"} /> {wishlisted ? "In Wishlist" : "Add to Wishlist"}
                             </button>
                             <ShareProductButton product={product} variant="button" className="w-full" />
                         </div>
@@ -364,7 +406,7 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                         {/* Service Badges */}
                         <div className="grid grid-cols-3 gap-2 text-[10px] text-gray-500 text-center bg-gray-50 p-3 rounded-lg">
                             <div className="flex flex-col items-center gap-1">
-                                <Truck size={16} className="text-gray-900" /> <span>Free Shipping &gt;$50</span>
+                                <Truck size={16} className="text-gray-900" /> <span>Free Shipping over Rs. 5,000</span>
                             </div>
                             <div className="flex flex-col items-center gap-1">
                                 <ShieldCheck size={16} className="text-gray-900" /> <span>Secure Payment</span>

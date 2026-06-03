@@ -8,6 +8,9 @@ import { NextResponse } from "next/server";
 
 export async function GET(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const sales = await Sale.find().sort({ createdAt: -1 });
         return NextResponse.json({ sales });
@@ -154,6 +157,9 @@ export async function POST(req) {
 
 export async function PUT(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { id, isActive, ...updates } = await req.json();
 

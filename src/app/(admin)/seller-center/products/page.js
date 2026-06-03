@@ -552,7 +552,7 @@ export default function ProductsPage() {
                                                         <FolderInput size={16} />
                                                     </button>
                                                     <Link
-                                                        href={`/seller-center/products/${productIdStr(product)}`}
+                                                        href={`/seller-center/products/edit/${productIdStr(product)}`}
                                                         className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-blue-600 transition-colors"
                                                         title="Edit Product"
                                                     >

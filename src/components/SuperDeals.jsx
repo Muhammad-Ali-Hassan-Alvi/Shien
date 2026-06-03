@@ -18,7 +18,7 @@ export default function SuperDeals({ hotDrops = [], flashSale = [], flashSaleEnd
                         </div>
                         <CountdownTimer endsAt={flashSaleEndsAt} />
                     </div>
-                    <Link href="/products?sort=price_asc" className="text-xs text-gray-500 hover:text-black flex items-center">
+                    <Link href="/products?sort=sale" className="text-xs text-gray-500 hover:text-black flex items-center">
                         View All <ChevronRight size={14} />
                     </Link>
                 </div>
@@ -31,12 +31,18 @@ export default function SuperDeals({ hotDrops = [], flashSale = [], flashSaleEnd
                                 key={product._id}
                                 className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-50 group block"
                             >
-                                <Image
-                                    src={product.images?.[0] || "/placeholder.jpg"}
-                                    alt={product.name}
-                                    fill
-                                    className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                />
+                                {product.images?.[0] ? (
+                                    <Image
+                                        src={product.images[0]}
+                                        alt={product.name}
+                                        fill
+                                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-full text-gray-300 bg-gray-100 text-xs">
+                                        No Image
+                                    </div>
+                                )}
                                 {product.pricing?.discountLabel && (
                                     <div className="absolute top-2 left-2 bg-[#FF3B30] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-[2px]">
                                         {product.pricing.discountLabel}
@@ -76,12 +82,18 @@ export default function SuperDeals({ hotDrops = [], flashSale = [], flashSaleEnd
                         hotDrops.slice(0, 3).map((product) => (
                             <Link href={`/product/${product.slug}`} key={product._id} className="flex flex-col gap-2 group">
                                 <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-50">
-                                    <Image
-                                        src={product.images?.[0] || "/placeholder.jpg"}
-                                        alt={product.name}
-                                        fill
-                                        className="object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
+                                    {product.images?.[0] ? (
+                                        <Image
+                                            src={product.images[0]}
+                                            alt={product.name}
+                                            fill
+                                            className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center w-full h-full text-gray-300 bg-gray-100 text-xs">
+                                            No Image
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="px-1">
                                     <div className="font-bold text-sm text-black">

@@ -28,6 +28,8 @@ const SORT_OPTIONS = [
 
     { value: "new", label: "Newest Arrivals" },
 
+    { value: "sale", label: "On Sale" },
+
     { value: "bestsellers", label: "Best Sellers" },
 
     { value: "price_asc", label: "Price: Low to High" },
@@ -60,6 +62,8 @@ export default function ShopPage(props) {
         sort: searchParams.sort || "new",
         minPrice: searchParams.minPrice || "",
         maxPrice: searchParams.maxPrice || "",
+        minDiscount: searchParams.minDiscount || "",
+        maxDiscount: searchParams.maxDiscount || "",
     });
 
 
@@ -98,6 +102,8 @@ export default function ShopPage(props) {
             sort: searchParams.sort || "new",
             minPrice: searchParams.minPrice || "",
             maxPrice: searchParams.maxPrice || "",
+            minDiscount: searchParams.minDiscount || "",
+            maxDiscount: searchParams.maxDiscount || "",
         }));
         setCurrentPage(1);
     }, [searchParams]);
@@ -113,6 +119,8 @@ export default function ShopPage(props) {
                     sort: filters.sort !== "new" ? filters.sort : undefined,
                     minPrice: filters.minPrice || undefined,
                     maxPrice: filters.maxPrice || undefined,
+                    minDiscount: filters.minDiscount || undefined,
+                    maxDiscount: filters.maxDiscount || undefined,
                 })
             );
         }
@@ -133,6 +141,8 @@ export default function ShopPage(props) {
                 if (filters.search) query.set("search", filters.search);
                 if (filters.minPrice) query.set("minPrice", filters.minPrice);
                 if (filters.maxPrice) query.set("maxPrice", filters.maxPrice);
+                if (filters.minDiscount) query.set("minDiscount", filters.minDiscount);
+                if (filters.maxDiscount) query.set("maxDiscount", filters.maxDiscount);
 
                 const res = await fetch(`/api/products?${query.toString()}`);
                 const data = await res.json();
@@ -174,6 +184,8 @@ export default function ShopPage(props) {
                 sort: next.sort && next.sort !== "new" ? next.sort : undefined,
                 minPrice: next.minPrice || undefined,
                 maxPrice: next.maxPrice || undefined,
+                minDiscount: next.minDiscount || undefined,
+                maxDiscount: next.maxDiscount || undefined,
             })
         );
     };
@@ -222,7 +234,7 @@ export default function ShopPage(props) {
 
     const clearFilters = () => {
 
-        const empty = { category: "", search: "", sort: "new", minPrice: "", maxPrice: "" };
+        const empty = { category: "", search: "", sort: "new", minPrice: "", maxPrice: "", minDiscount: "", maxDiscount: "" };
 
         setFilters(empty);
 

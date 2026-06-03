@@ -66,7 +66,7 @@ export default function Footer() {
                         <ul className="space-y-3 text-sm text-gray-500 font-medium">
                             <li><Link href="/products?sort=new" className="hover:text-black transition-colors">New Arrivals</Link></li>
                             <li><Link href="/products?sort=bestsellers" className="hover:text-black transition-colors">Best Sellers</Link></li>
-                            <li><Link href="/products?sort=price_asc" className="hover:text-black transition-colors">Sale</Link></li>
+                            <li><Link href="/products?sort=sale" className="hover:text-black transition-colors">Sale</Link></li>
                             <li><Link href="/products?category=Gift%20Cards" className="hover:text-black transition-colors">Gift Cards</Link></li>
                         </ul>
                     </div>

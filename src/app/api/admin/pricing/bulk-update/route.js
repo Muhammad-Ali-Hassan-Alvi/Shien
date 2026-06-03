@@ -1,9 +1,13 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import { requireAdmin } from "@/app/lib/requireAdmin";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
     try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
         await connectDB();
         const { category, markupPercentage, discountPercentage } = await req.json();
 

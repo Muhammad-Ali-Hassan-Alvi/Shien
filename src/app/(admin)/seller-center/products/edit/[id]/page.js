@@ -11,9 +11,13 @@ import {
     buildCategorySelectOptions,
     flattenCategoriesFlat,
     resolveEffectiveVariantSettings,
-    buildDefaultProductVariant,
     formatVariantSettingsLabel,
 } from "@/app/lib/categoryUtils";
+import {
+    deriveMarkupPercent,
+    deriveDiscountPercent,
+    mergeVariantsOnSave,
+} from "@/app/lib/productUtils";
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -24,6 +28,9 @@ export default function EditProductPage() {
     const [submitting, setSubmitting] = useState(false);
     const [categoryOptions, setCategoryOptions] = useState([]);
     const [categoryTree, setCategoryTree] = useState([]);
+
+    const [existingVariants, setExistingVariants] = useState([]);
+    const [existingDescription, setExistingDescription] = useState("");
 
     const [formData, setFormData] = useState({
         name: "",
@@ -60,48 +67,25 @@ export default function EditProductPage() {
 
                 if (prodJson.product) {
                     const p = prodJson.product;
+                    setExistingVariants(p.variants || []);
+                    setExistingDescription(p.description || "");
+
+                    const orig = p.pricing?.originalPrice || 0;
+                    const sale = p.pricing?.salePrice || 0;
+                    const cost = p.pricing?.baseCost || 0;
+                    const discount = deriveDiscountPercent(orig, sale);
+                    const markup = deriveMarkupPercent(cost, orig);
+
                     setFormData({
                         name: p.name,
                         category: p.category,
-                        baseCost: p.pricing?.baseCost || 0,
-                        markupPercentage: 0, // We don't store markup, we infer or reset. Let's just calculate from prices if needed, or leave 0 and let user override
-                        discountPercentage: 0, // Hard to reverse engineer exactly without storing. 
-                        // Actually, let's just set the prices directly or try to reverse if easy.
-                        // For simplicity in Edit, we might just load cost/prices. 
-                        // But the UI relies on markup/discount.
-                        // Let's set cost and sales price, and let user adjust if they want.
-                        // Or better: Just set the baseCost and let the preview update? No that would overwrite existing prices.
-
-                        // Strategy: We load the *values*.
-                        // If we want to support the calculator, we need to reverse engineer or just let user type new values.
-                        // Let's load the *current* pricing into the preview, and set inputs to 0?
-                        // Or better: Back-calculate discount % from original vs sale.
+                        baseCost: cost,
+                        markupPercentage: markup,
+                        discountPercentage: discount,
                         stock: p.variants?.[0]?.stock || 0,
                         images: p.images || [],
                         slug: p.slug
                     });
-
-                    // Derive Discount %
-                    const orig = p.pricing?.originalPrice || 0;
-                    const sale = p.pricing?.salePrice || 0;
-                    const cost = p.pricing?.baseCost || 0;
-
-                    let discount = 0;
-                    if (orig > 0) {
-                        discount = Math.round(((orig - sale) / orig) * 100);
-                    }
-
-                    // Derive Markup % (Original vs Cost)
-                    let markup = 0;
-                    if (cost > 0) {
-                        markup = Math.round(((orig - cost) / cost) * 100);
-                    }
-
-                    setFormData(prev => ({
-                        ...prev,
-                        markupPercentage: markup,
-                        discountPercentage: discount
-                    }));
 
                     setPricingPreview({
                         originalPrice: orig,
@@ -184,14 +168,14 @@ export default function EditProductPage() {
             const payload = {
                 name: formData.name,
                 category: formData.category.trim(),
-                description: "Premium Quality Fabric",
+                description: existingDescription || "Premium Quality Fabric",
                 pricing: {
                     baseCost: Number(formData.baseCost),
                     originalPrice: pricingPreview.originalPrice,
                     salePrice: pricingPreview.salePrice,
                     discountLabel: `${formData.discountPercentage}% OFF`
                 },
-                variants: buildDefaultProductVariant(formData.stock, variantConfig),
+                variants: mergeVariantsOnSave(existingVariants, formData.stock, variantConfig),
                 images: formData.images,
                 isDirtyPriced: true
             };
