@@ -2,6 +2,7 @@
 
 import CheckoutForm from "@/components/CheckoutForm";
 import { useCartStore } from "@/store/useCartStore";
+import { useUIStore } from "@/store/useUIStore";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
@@ -11,7 +12,7 @@ import Image from "next/image";
 const supportPhone = getSupportPhone() || "our support line";
 
 export default function CheckoutPage() {
-    const { items, clearCart, getCartTotal, hasHydrated } = useCartStore();
+    const { items, getCartTotal, hasHydrated } = useCartStore();
     const [orderSuccess, setOrderSuccess] = useState(null);
     const [emailInfo, setEmailInfo] = useState(null);
     const router = useRouter();
@@ -42,7 +43,8 @@ export default function CheckoutPage() {
     }, [hasHydrated, items, orderSuccess, router]);
 
     const handleSuccess = (orderId, emailMeta) => {
-        clearCart();
+        useCartStore.getState().clearCart();
+        useUIStore.getState().closeCart();
         setOrderSuccess(orderId);
         setEmailInfo(emailMeta || null);
         window.scrollTo(0, 0);

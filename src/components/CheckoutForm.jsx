@@ -87,6 +87,15 @@ export default function CheckoutForm({ onSuccess }) {
             if (!res.ok) throw new Error(data.error || "Order Failed");
 
             toast.success("Order Placed!");
+
+            const { clearCart, removeOrderedItems } = useCartStore.getState();
+            if (orderData.items.length > 0) {
+                removeOrderedItems(orderData.items);
+            }
+            if (useCartStore.getState().items.length === 0) {
+                clearCart();
+            }
+
             if (onSuccess) {
                 onSuccess(data.orderId, {
                     emailSent: data.emailSent,
