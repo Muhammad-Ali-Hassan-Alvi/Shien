@@ -20,7 +20,7 @@ import ProductFilterSidebar from "@/components/ProductFilterSidebar";
 
 import { productsLink } from "@/app/lib/navLinks";
 
-import { findCategoryInTree } from "@/app/lib/categoryUtils";
+import { findCategoryInTree, formatCategoryBreadcrumb } from "@/app/lib/categoryUtils";
 
 
 
@@ -247,10 +247,12 @@ export default function ShopPage(props) {
 
 
     const activeCat = filters.category
-
         ? findCategoryInTree(categoryTree, filters.category)
-
         : null;
+
+    const categoryFilterLabel = filters.category
+        ? formatCategoryBreadcrumb(categoryTree, filters.category)
+        : "";
 
 
 
@@ -368,10 +370,10 @@ export default function ShopPage(props) {
                                 <button
                                     type="button"
                                     onClick={() => handleCategoryChange("")}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full max-w-full"
                                 >
-                                    {activeCat?.name || filters.category}
-                                    <span className="opacity-70">×</span>
+                                    <span className="truncate">{categoryFilterLabel}</span>
+                                    <span className="opacity-70 shrink-0">×</span>
                                 </button>
                             )}
                             {(filters.minPrice || filters.maxPrice) && (

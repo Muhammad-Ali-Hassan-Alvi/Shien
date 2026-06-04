@@ -10,9 +10,14 @@ import {
     buildCategorySelectOptions,
     flattenCategoriesFlat,
     resolveEffectiveVariantSettings,
-    buildDefaultProductVariant,
     formatVariantSettingsLabel,
+    formatVariantSettingsSource,
 } from "@/app/lib/categoryUtils";
+import {
+    createInitialVariantRows,
+    buildVariantsFromAdminRows,
+} from "@/app/lib/productUtils";
+import ProductVariantEditor from "@/components/admin/ProductVariantEditor";
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -22,13 +27,17 @@ export default function NewProductPage() {
 
     const [formData, setFormData] = useState({
         name: "",
+        description: "",
         category: "",
         baseCost: 0,
         markupPercentage: 50,
         discountPercentage: 20,
-        stock: 100,
         images: [],
     });
+
+    const [variantRows, setVariantRows] = useState([
+        { color: "Default", size: "One Size", stock: 100 },
+    ]);
 
     const [pricingPreview, setPricingPreview] = useState({
         originalPrice: 0,
@@ -75,13 +84,17 @@ export default function NewProductPage() {
         [flatCategories, formData.category]
     );
 
+    useEffect(() => {
+        if (!formData.category) return;
+        setVariantRows(createInitialVariantRows(variantConfig));
+    }, [formData.category, variantConfig.supportsSizes, variantConfig.supportsColors]);
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
     const handleCategoryChange = (e) => {
-        const value = e.target.value;
-        setFormData((prev) => ({ ...prev, category: value }));
+        setFormData((prev) => ({ ...prev, category: e.target.value }));
     };
 
     const handleImageUpload = async (e) => {
@@ -120,19 +133,41 @@ export default function NewProductPage() {
             return;
         }
 
+        const variants = buildVariantsFromAdminRows(variantRows, variantConfig);
+        if (variants.every((v) => (v.stock ?? 0) <= 0)) {
+            toast.error("Add stock for at least one variant");
+            setLoading(false);
+            return;
+        }
+
+        if (
+            variantConfig.supportsColors &&
+            variantRows.some((r) => !r.color?.trim())
+        ) {
+            toast.error("Enter a name for each color variant");
+            setLoading(false);
+            return;
+        }
+
+        if (!formData.description?.trim()) {
+            toast.error("Please add a product description");
+            setLoading(false);
+            return;
+        }
+
         try {
             const payload = {
                 name: formData.name,
                 slug: formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now(),
                 category: formData.category.trim(),
-                description: "Premium Quality Fabric", // Placeholder
+                description: formData.description.trim(),
                 pricing: {
                     baseCost: Number(formData.baseCost),
                     originalPrice: pricingPreview.originalPrice,
                     salePrice: pricingPreview.salePrice,
                     discountLabel: `${formData.discountPercentage}% OFF`
                 },
-                variants: buildDefaultProductVariant(formData.stock, variantConfig),
+                variants,
                 images: formData.images,
                 isDirtyPriced: true
             };
@@ -181,6 +216,22 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
+                        <label className="block text-sm font-bold mb-2">Product Description</label>
+                        <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            rows={4}
+                            className="w-full border p-3 rounded resize-y min-h-[100px]"
+                            placeholder="e.g. Premium quality fabric with a soft finish…"
+                            required
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                            Shown on the product page below the star rating.
+                        </p>
+                    </div>
+
+                    <div>
                         <label className="block text-sm font-bold mb-2">Category</label>
                         <StyledSelect
                             name="category"
@@ -203,32 +254,23 @@ export default function NewProductPage() {
                                 <p className="text-xs text-indigo-600 mt-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
                                     Shop options:{" "}
                                     <strong>{formatVariantSettingsLabel(variantConfig)}</strong>
+                                    {" — "}
+                                    {formatVariantSettingsSource(variantConfig)}
                                     {!variantConfig.supportsSizes && !variantConfig.supportsColors
-                                        ? " — customers only pick quantity."
-                                        : variantConfig.inheritedFrom
-                                          ? ` (from ${variantConfig.inheritedFrom})`
-                                          : ""}
+                                        ? ". Customers only pick quantity."
+                                        : "."}
                                 </p>
                             </>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-bold mb-2">
-                                {variantConfig.supportsSizes || variantConfig.supportsColors
-                                    ? "Stock (default variant)"
-                                    : "Stock quantity"}
-                            </label>
-                            <input
-                                type="number"
-                                name="stock"
-                                value={formData.stock}
-                                onChange={handleChange}
-                                className="w-full border p-3 rounded"
-                            />
-                        </div>
-                    </div>
+                    {formData.category && (
+                        <ProductVariantEditor
+                            variantConfig={variantConfig}
+                            rows={variantRows}
+                            onChange={setVariantRows}
+                        />
+                    )}
 
                     {/* Image Upload */}
                     <div className="space-y-4">

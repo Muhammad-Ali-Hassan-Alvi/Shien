@@ -58,7 +58,7 @@ function CategoryTreeNode({
                         {parentNode && parentNode.isActive === false && (
                             <span className="text-orange-500">Hidden (parent inactive)</span>
                         )}
-                        {!node.showInNav && <span className="text-amber-500">Hidden from nav</span>}
+                        {!node.showInNav && <span className="text-amber-500">Hidden from top nav</span>}
                         <span className="text-indigo-500">{variantLabel}</span>
                         {node.customVariantSettings && (
                             <span className="text-violet-600 font-medium">Custom rules</span>

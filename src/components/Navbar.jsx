@@ -9,7 +9,7 @@ import NotificationDropdown from "./NotificationDropdown";
 import CategoryListPanel from "./CategoryListPanel";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { productsLink } from "@/app/lib/navLinks";
-import { getLineCategories, getNavCategories, buildMegaMenuColumns } from "@/app/lib/categoryUtils";
+import { getLineCategories, getNavCategories, buildMegaMenuColumns, filterNavCategoryTree } from "@/app/lib/categoryUtils";
 
 const STATIC_NAV = [
     { label: "New In", href: productsLink({ sort: "new" }), static: true },
@@ -47,33 +47,59 @@ function navLinkClassName({ highlight, isActive, isOpen }) {
     }`;
 }
 
-function megaMenuLinkClassName(isActive, { bold = false } = {}) {
-    return `inline-block transition-colors border-b-2 pb-0.5 ${
-        bold ? "font-playfair font-bold text-sm" : "text-sm"
-    } ${
-        isActive
-            ? "text-indigo-600 border-indigo-600"
-            : "text-gray-900 border-transparent hover:text-indigo-600 hover:border-indigo-600"
-    }`;
-}
-
-function megaMenuSubLinkClassName(isActive) {
-    return `inline-block text-sm transition-colors border-b-2 pb-0.5 ${
-        isActive
-            ? "text-indigo-600 border-indigo-600 font-medium"
-            : "text-gray-500 border-transparent hover:text-indigo-600 hover:border-indigo-600"
-    }`;
-}
-
-function MegaMenuLink({ href, bold = false, className = "", children }) {
+function MegaMenuLink({ href, children, nested = false, bold = false }) {
     const isActive = useIsNavActive(href);
     return (
         <Link
             href={href}
-            className={`${bold ? megaMenuLinkClassName(isActive, { bold: true }) : megaMenuSubLinkClassName(isActive)} ${className}`}
+            className={`block text-sm transition-colors border-b-2 mx-3 ${
+                nested ? "pl-5 pr-4 py-2" : "px-4 py-2.5"
+            } ${
+                bold ? "font-semibold" : ""
+            } ${
+                isActive
+                    ? "text-indigo-600 border-indigo-600 font-medium"
+                    : nested
+                      ? "text-gray-500 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
+                      : "text-gray-700 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
+            }`}
         >
             {children}
         </Link>
+    );
+}
+
+function MegaMenuPanel({ subCategories, open, onEnter, onLeave }) {
+    if (!open || !subCategories?.length) return null;
+
+    return (
+        <div
+            className={`absolute left-0 top-[calc(100%+2px)] z-[100] w-56 min-w-[12rem] max-w-[280px] transition-all duration-150 ${
+                open ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
+            }`}
+            onMouseEnter={onEnter}
+            onMouseLeave={onLeave}
+        >
+            <ul className="bg-white border border-gray-200 shadow-xl rounded-xl py-2 overflow-hidden max-h-[min(70vh,420px)] overflow-y-auto">
+                {subCategories.map((sub) => (
+                    <li key={sub.title}>
+                        <MegaMenuLink href={productsLink({ category: sub.title })} bold>
+                            {sub.title}
+                        </MegaMenuLink>
+                        {sub.items.length > 0 &&
+                            sub.items.map((subItem) => (
+                                <MegaMenuLink
+                                    key={subItem.name}
+                                    href={productsLink({ category: subItem.name })}
+                                    nested
+                                >
+                                    {subItem.name}
+                                </MegaMenuLink>
+                            ))}
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }
 
@@ -86,45 +112,6 @@ function categoryToNavItem(category) {
         subCategories: megaColumns || [],
         _id: category._id,
     };
-}
-
-function MegaMenuPanel({ subCategories, open, onEnter, onLeave }) {
-    if (!open || !subCategories?.length) return null;
-    const cols = Math.min(subCategories.length, 4);
-
-    return (
-        <div
-            className={`absolute left-1/2 -translate-x-1/2 top-[calc(100%+2px)] z-[100] w-[min(92vw,560px)] transition-all duration-150 ${
-                open ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
-            }`}
-            onMouseEnter={onEnter}
-            onMouseLeave={onLeave}
-        >
-            <div
-                className="bg-white border border-gray-200 shadow-xl rounded-xl p-5 grid gap-5"
-                style={{ gridTemplateColumns: `repeat(${Math.min(cols, subCategories.length)}, minmax(0, 1fr))` }}
-            >
-                {subCategories.map((sub) => (
-                    <div key={sub.title} className="space-y-2 min-w-0">
-                        <MegaMenuLink href={productsLink({ category: sub.title })} bold className="block">
-                            {sub.title}
-                        </MegaMenuLink>
-                        {sub.items.length > 0 && (
-                            <ul className="space-y-2">
-                                {sub.items.map((subItem) => (
-                                    <li key={subItem.name}>
-                                        <MegaMenuLink href={productsLink({ category: subItem.name })}>
-                                            {subItem.name}
-                                        </MegaMenuLink>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
 }
 
 function NavMenuItem({ item }) {
@@ -250,28 +237,34 @@ export default function Navbar() {
     const { items } = useCartStore();
     const [scrolled, setScrolled] = useState(false);
     const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
-    const [navCategories, setNavCategories] = useState([]);
+    const [categoryTree, setCategoryTree] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
     const [query, setQuery] = useState("");
 
     useEffect(() => {
-        async function fetchNavCategories() {
+        async function fetchCategories() {
             try {
-                const res = await fetch("/api/categories?tree=true&nav=true");
+                const res = await fetch("/api/categories?tree=true");
                 const data = await res.json();
-                if (data.categories) setNavCategories(data.categories);
+                if (data.categories) setCategoryTree(data.categories);
             } catch (e) {
-                console.error("Failed to load nav categories", e);
+                console.error("Failed to load categories", e);
             }
         }
-        fetchNavCategories();
+        fetchCategories();
     }, []);
 
-    const navLines = useMemo(() => getLineCategories(navCategories), [navCategories]);
+    /** Top navbar only — respects "Show in navbar". Hamburger uses full active tree. */
+    const navCategoriesForHeader = useMemo(
+        () => filterNavCategoryTree(categoryTree),
+        [categoryTree]
+    );
+
+    const navLines = useMemo(() => getLineCategories(categoryTree), [categoryTree]);
 
     const dynamicNav = useMemo(
-        () => getNavCategories(navCategories).map(categoryToNavItem),
-        [navCategories]
+        () => getNavCategories(navCategoriesForHeader).map(categoryToNavItem),
+        [navCategoriesForHeader]
     );
 
     const primaryNav = useMemo(() => {
@@ -497,7 +490,7 @@ export default function Navbar() {
                 isOpen={categoryMenuOpen}
                 onClose={() => setCategoryMenuOpen(false)}
                 lines={navLines}
-                allCategories={navCategories}
+                allCategories={categoryTree}
             />
         </>
     );

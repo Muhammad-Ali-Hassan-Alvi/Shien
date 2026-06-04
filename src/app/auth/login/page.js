@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { authenticate } from "@/app/lib/actions";
+import { safeCallbackPath } from "@/app/lib/siteUrl";
 import { Eye, EyeOff } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = safeCallbackPath(searchParams.get("callbackUrl"), "/");
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -23,17 +26,15 @@ export default function LoginPage() {
                 toast.error(result.error);
             } else {
                 toast.success("Welcome back!");
-
-                // CRITICAL: Refresh router to update middleware/session state
                 router.refresh();
 
-                // Small delay to ensure cookie propagation before redirect
+                const target = result.role === "admin" ? "/seller-center" : callbackUrl;
+
                 setTimeout(() => {
-                    const target = result.role === 'admin' ? '/seller-center' : '/';
                     router.push(target);
                 }, 500);
             }
-        } catch (err) {
+        } catch {
             toast.error("Login failed");
         } finally {
             setLoading(false);
@@ -105,5 +106,13 @@ export default function LoginPage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">Loading…</div>}>
+            <LoginForm />
+        </Suspense>
     );
 }

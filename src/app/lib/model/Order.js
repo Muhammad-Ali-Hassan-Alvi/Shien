@@ -5,7 +5,7 @@ const OrderSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            default: null,
         },
         items: [
             {
@@ -26,6 +26,7 @@ const OrderSchema = new mongoose.Schema(
         ],
         shippingInfo: {
             fullName: { type: String, required: true },
+            email: { type: String, required: true },
             phone: { type: String, required: true },
             address: { type: String, required: true },
             city: { type: String, required: true }, // Verified against JSON list in frontend/backend

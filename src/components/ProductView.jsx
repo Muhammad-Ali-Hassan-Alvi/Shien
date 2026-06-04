@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useWishlistStore } from "@/store/useWishlistStore";
-import { Star, Truck, ShieldCheck, RefreshCcw, Heart, ChevronRight, Copy, Plus, Minus } from "lucide-react";
+import { Star, Truck, ShieldCheck, RefreshCcw, Heart, ChevronRight, Plus, Minus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { productsLink } from "@/app/lib/navLinks";
@@ -46,7 +46,6 @@ export default function ProductView({ product, relatedProducts = [], variantConf
 
     const reviewCount = product.reviewCount || 0;
     const averageRating = product.averageRating || 0;
-    const sku = product.slug?.toUpperCase() || product._id?.slice(-8)?.toUpperCase() || "N/A";
 
     const maxStock = Math.max(0, selectedVariant?.stock ?? 0);
     const inStock = maxStock > 0;
@@ -94,15 +93,6 @@ export default function ProductView({ product, relatedProducts = [], variantConf
 
     const decreaseQty = () => setQuantity((q) => Math.max(1, q - 1));
     const increaseQty = () => setQuantity((q) => Math.min(maxStock, q + 1));
-
-    const handleCopySku = async () => {
-        try {
-            await navigator.clipboard.writeText(sku);
-            toast.success("SKU copied!");
-        } catch {
-            toast.error("Could not copy SKU");
-        }
-    };
 
     const handleQtyInput = (e) => {
         const val = parseInt(e.target.value, 10);
@@ -252,14 +242,6 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                                 )}
                             </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-                                <button
-                                    type="button"
-                                    onClick={handleCopySku}
-                                    className="flex items-center gap-1 hover:text-black transition-colors"
-                                    title="Copy SKU"
-                                >
-                                    SKU: {sku} <Copy size={12} />
-                                </button>
                                 <ShareProductButton product={product} variant="pill" />
                                 <div className="flex items-center gap-1 text-[#FFB800]">
                                     {[1, 2, 3, 4, 5].map((i) => (

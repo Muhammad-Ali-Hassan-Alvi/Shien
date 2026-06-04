@@ -1,10 +1,8 @@
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import { getAppBaseUrl } from "@/app/lib/siteUrl";
 
-const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    "http://localhost:3000";
+const baseUrl = getAppBaseUrl();
 
 export default async function sitemap() {
     const staticRoutes = [

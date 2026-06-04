@@ -6,19 +6,12 @@ import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import clsx from "clsx";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function CartDrawer() {
-  const { items, removeItem, updateQuantity, getCartTotal } = useCartStore();
+  const { items, removeItem, updateQuantity, getCartTotal, hasHydrated } = useCartStore();
   const { isCartOpen, closeCart } = useUIStore();
-  const [mounted, setMounted] = useState(false);
 
-  // Hydration fix for persist middleware
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
+  if (!hasHydrated) return null;
 
   return (
     <>
@@ -65,7 +58,7 @@ export default function CartDrawer() {
                  {/* Image Placeholder if no image */}
                  <div className="relative w-24 h-32 bg-gray-100 rounded-md overflow-hidden shrink-0">
                     {item.images?.[0] ? (
-                        <Image src={item.images[0]} alt={item.name} fill className="object-cover" />
+                        <Image src={item.images[0]} alt={item.name} fill className="object-cover" sizes="96px" />
                     ) : (
                         <div className="w-full h-full bg-gray-200" />
                     )}

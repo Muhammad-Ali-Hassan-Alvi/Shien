@@ -10,7 +10,12 @@ const ReviewSchema = new mongoose.Schema(
         product: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Product",
-            required: true
+            required: true,
+        },
+        /** Snapshot when product is deleted — for admin display. */
+        productName: {
+            type: String,
+            default: "",
         },
         rating: {
             type: Number,

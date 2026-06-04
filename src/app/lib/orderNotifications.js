@@ -15,7 +15,12 @@ export async function notifyOrderPlaced({ order, userId, shippingInfo, sessionEm
     const userRecord = resolvedUserId
         ? await User.findById(resolvedUserId).select("email name").lean()
         : null;
-    const recipient = userRecord?.email || sessionEmail || null;
+    const recipient =
+        userRecord?.email ||
+        sessionEmail ||
+        shippingInfo?.email ||
+        order.shippingInfo?.email ||
+        null;
     const userName = userRecord?.name || shippingInfo?.fullName || order.shippingInfo?.fullName;
     const shortId = String(order._id).slice(-8).toUpperCase();
     const paymentLabel =
@@ -25,12 +30,14 @@ export async function notifyOrderPlaced({ order, userId, shippingInfo, sessionEm
     let customerEmailReason = null;
 
     try {
-        await createUserNotification({
-            userId: resolvedUserId,
-            type: "OrderPlaced",
-            message: `Order #${shortId} placed — Rs. ${order.totalAmount.toLocaleString("en-PK")} (${paymentLabel})`,
-            link: "/profile/orders",
-        });
+        if (resolvedUserId) {
+            await createUserNotification({
+                userId: resolvedUserId,
+                type: "OrderPlaced",
+                message: `Order #${shortId} placed — Rs. ${order.totalAmount.toLocaleString("en-PK")} (${paymentLabel})`,
+                link: "/profile/orders",
+            });
+        }
     } catch (e) {
         console.error("Customer order notification failed:", e);
     }

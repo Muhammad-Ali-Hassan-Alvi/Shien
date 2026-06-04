@@ -26,6 +26,11 @@ export default function ProductReviews({ productId }) {
         if (session?.user) {
             checkEligibility();
         }
+        if (typeof window !== "undefined" && window.location.hash === "#reviews") {
+            requestAnimationFrame(() => {
+                document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+        }
     }, [productId, session]);
 
     async function checkEligibility() {

@@ -249,6 +249,10 @@ export async function POST(req) {
             return NextResponse.json({ error: "Name and Slug are required" }, { status: 400 });
         }
 
+        if (!body.description?.trim()) {
+            return NextResponse.json({ error: "Description is required" }, { status: 400 });
+        }
+
         const catCheck = await validateCategoryName(body.category);
         if (!catCheck.valid) {
             return NextResponse.json({ error: catCheck.error }, { status: 400 });

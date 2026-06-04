@@ -511,6 +511,14 @@ export default function ProductsPage() {
                                                 >
                                                     {product.name}
                                                 </p>
+                                                {product.slug && (
+                                                    <p
+                                                        className="text-[10px] text-gray-400 font-mono truncate max-w-[220px] mt-0.5"
+                                                        title={product.slug}
+                                                    >
+                                                        SKU: {product.slug.toUpperCase()}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     </td>

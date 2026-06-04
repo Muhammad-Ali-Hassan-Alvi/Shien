@@ -69,7 +69,9 @@ export default function ReviewsPage() {
                                         <div className="w-8 h-8 relative rounded bg-gray-100 overflow-hidden">
                                             {r.product?.images?.[0] && <Image src={r.product.images[0]} fill className="object-cover" alt="" />}
                                         </div>
-                                        <span className="text-sm font-medium truncate max-w-[150px]">{r.product?.name}</span>
+                                        <span className="text-sm font-medium truncate max-w-[150px]">
+                                            {r.productName || r.product?.name || "Removed product"}
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-sm">{r.user?.name || "User"}</td>

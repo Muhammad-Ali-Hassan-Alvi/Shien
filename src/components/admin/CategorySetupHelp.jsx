@@ -99,15 +99,15 @@ export default function CategorySetupHelp() {
                             Variant settings (sizes & colors)
                         </div>
                         <ol className="space-y-2 text-gray-600 list-decimal pl-5">
-                            <li>Click <strong>Edit</strong> on a category (usually the top-level type).</li>
-                            <li>Check <strong>Use custom variant settings for this category</strong>.</li>
+                            <li>Click <strong>Edit</strong> on a category (usually the top-level department).</li>
                             <li>Toggle <strong>Show size selector</strong> / <strong>Show color selector</strong>.</li>
                             <li>For clothing, set size options (comma-separated): e.g. <code className="bg-gray-100 px-1 rounded">XS, S, M, L, XL</code>.</li>
-                            <li>Save — subcategories inherit unless they also enable custom settings.</li>
+                            <li>Save — all subcategories inherit unless they save their own overrides.</li>
                         </ol>
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                            Tip: Create <strong>Clothing</strong> and <strong>Electronics</strong> as two roots first, set
-                            their variant rules once, then add all subcategories underneath.
+                            Smart defaults: <strong>Clothing/Fashion</strong> → sizes + colors ·{" "}
+                            <strong>Automotive</strong> → colors only · <strong>Electronics</strong> → stock only.
+                            Set once on the root department, then add subcategories underneath.
                         </p>
                     </div>
                 </div>

@@ -13,6 +13,7 @@ import Footer from "@/components/Footer";
 import { Toaster } from 'react-hot-toast';
 import { SessionProvider } from "next-auth/react";
 import { SocketProvider } from "@/context/SocketProvider";
+import CartHydrator from "@/components/CartHydrator";
 
 function WishlistHydrator({ isAdmin }) {
   const { status } = useSession();
@@ -34,6 +35,7 @@ export default function ClientLayoutWrapper({ children, session }) {
   return (
     <SessionProvider session={session}>
       <SocketProvider>
+      <CartHydrator />
       <WishlistHydrator isAdmin={isAdmin} />
       {!isAdmin && <ServiceBar />}
       {!isAdmin && <Navbar />}

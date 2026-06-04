@@ -3,6 +3,7 @@ import Order from "@/app/lib/model/Order";
 import Product from "@/app/lib/model/Product";
 import mongoose from "mongoose";
 import { notifyAllAdmins } from "@/lib/notificationService";
+import { resolveVariantForOrder } from "@/app/lib/productUtils";
 
 const LOW_STOCK = 3;
 
@@ -45,16 +46,15 @@ export class OrderService {
                     throw new Error(`Product ${item.product} not found`);
                 }
 
-                // Check Stock for Variant
-                const variantIndex = product.variants.findIndex(
-                    v => v.color === item.variant.color && v.size === item.variant.size
+                // Match variant flexibly — cart may have stale color/size labels (e.g. Mixed vs Default)
+                const { index: variantIndex, variant, resolved } = resolveVariantForOrder(
+                    product.variants,
+                    item.variant
                 );
 
-                if (variantIndex === -1) {
-                    throw new Error(`Variant ${item.variant.size}/${item.variant.color} not found for ${product.name}`);
+                if (variantIndex === -1 || !variant) {
+                    throw new Error(`No variants available for ${product.name}`);
                 }
-
-                const variant = product.variants[variantIndex];
                 if (variant.stock < item.quantity) {
                     throw new Error(`Insufficient stock for ${product.name} (${variant.size}/${variant.color})`);
                 }
@@ -77,14 +77,17 @@ export class OrderService {
                     image: product.images?.[0] || "",
                     price: price,
                     quantity: item.quantity,
-                    variant: item.variant,
+                    variant: {
+                        color: resolved.color,
+                        size: resolved.size,
+                    },
                 });
             }
 
             const isOnline = paymentMethod === "GOPAYFAST";
 
             const [order] = await Order.create([{
-                user: userId,
+                ...(userId ? { user: userId } : {}),
                 items: finalItems,
                 shippingInfo,
                 paymentMethod,

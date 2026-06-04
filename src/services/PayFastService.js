@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { getAppBaseUrl } from "@/app/lib/siteUrl";
 
 function envFirst(...keys) {
     for (const key of keys) {
@@ -20,12 +21,7 @@ export function isPayFastConfigured() {
     return Boolean(merchantId && securedKey);
 }
 
-export function getAppBaseUrl() {
-    return (
-        envFirst("NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_SITE_URL", "AUTH_URL", "SITE_URL") ||
-        "http://localhost:3000"
-    ).replace(/\/$/, "");
-}
+export { getAppBaseUrl };
 
 function getMode() {
     return (process.env.GOPAYFAST_MODE || process.env.PAYFAST_MODE || "sandbox").toLowerCase();

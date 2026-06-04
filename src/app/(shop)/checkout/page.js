@@ -11,16 +11,35 @@ import Image from "next/image";
 const supportPhone = getSupportPhone() || "our support line";
 
 export default function CheckoutPage() {
-    const { items, clearCart, getCartTotal } = useCartStore();
+    const { items, clearCart, getCartTotal, hasHydrated } = useCartStore();
     const [orderSuccess, setOrderSuccess] = useState(null);
     const [emailInfo, setEmailInfo] = useState(null);
     const router = useRouter();
 
     useEffect(() => {
+        if (hasHydrated) return;
+
+        const markHydrated = () => useCartStore.getState().setHasHydrated(true);
+        if (useCartStore.persist.hasHydrated()) {
+            markHydrated();
+            return;
+        }
+
+        const unsub = useCartStore.persist.onFinishHydration(markHydrated);
+        const fallback = setTimeout(markHydrated, 800);
+
+        return () => {
+            unsub();
+            clearTimeout(fallback);
+        };
+    }, [hasHydrated]);
+
+    useEffect(() => {
+        if (!hasHydrated) return;
         if (items.length === 0 && !orderSuccess) {
             router.replace("/");
         }
-    }, [items, orderSuccess, router]);
+    }, [hasHydrated, items, orderSuccess, router]);
 
     const handleSuccess = (orderId, emailMeta) => {
         clearCart();
@@ -49,7 +68,10 @@ export default function CheckoutPage() {
                         </p>
                     ) : (
                         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg p-3 mb-6">
-                            Email receipt could not be sent{emailInfo?.emailTo ? ` to ${emailInfo.emailTo}` : ""}. Your order is still confirmed — check Profile → Orders or wait for our call.
+                            Email receipt could not be sent{emailInfo?.emailTo ? ` to ${emailInfo.emailTo}` : ""}. Your order is still confirmed
+                            {emailInfo?.isGuest
+                                ? " — we'll contact you on your phone number."
+                                : " — check Profile → Orders or wait for our call."}
                         </p>
                     )}
 
@@ -60,6 +82,14 @@ export default function CheckoutPage() {
                         Continue Shopping
                     </button>
                 </div>
+            </div>
+        );
+    }
+
+    if (!hasHydrated) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-12 flex items-center justify-center">
+                <p className="text-gray-500">Loading your cart…</p>
             </div>
         );
     }
@@ -91,7 +121,7 @@ export default function CheckoutPage() {
                                         <p className="text-xs text-gray-500">Qty {item.quantity}</p>
                                     </div>
                                     <span className="font-medium shrink-0">
-                                        Rs. {(item.price * item.quantity).toLocaleString()}
+                                        Rs. {((item.pricing?.salePrice ?? item.salePrice ?? 0) * item.quantity).toLocaleString()}
                                     </span>
                                 </li>
                             ))}

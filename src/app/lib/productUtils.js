@@ -60,15 +60,32 @@ export function findMatchingVariant(variants = [], { color, size } = {}) {
     if (!match) match = variants[0];
 
     return {
-        ...match,
-        color: color ?? match.color,
-        size: size ?? match.size,
+        color: match.color || "Default",
+        size: match.size || "One Size",
         stock: match.stock ?? 0,
     };
 }
 
+/** Resolve a cart/checkout variant to a real product variant index. */
+export function resolveVariantForOrder(variants = [], requested = {}) {
+    const resolved = findMatchingVariant(variants, requested);
+    const norm = (s) => (s ?? "").toString().trim().toLowerCase();
+
+    let index = variants.findIndex(
+        (v) => norm(v.color) === norm(resolved.color) && norm(v.size) === norm(resolved.size)
+    );
+    if (index === -1 && variants.length > 0) index = 0;
+
+    return {
+        index,
+        variant: index >= 0 ? variants[index] : null,
+        resolved,
+    };
+}
+
 /** Pick safe fields for create/update — prevents mass assignment. */
-export function sanitizeProductPayload(body, { allowArchive = false } = {}) {    const out = {};
+export function sanitizeProductPayload(body, { allowArchive = false } = {}) {
+    const out = {};
     for (const key of ALLOWED_PRODUCT_FIELDS) {
         if (body[key] !== undefined) out[key] = body[key];
     }
@@ -117,4 +134,57 @@ export function mergeVariantsOnSave(existingVariants, stock, variantConfig) {
     }
 
     return buildDefaultProductVariant(qty, variantConfig);
+}
+
+/** Build admin form rows from saved variants or category defaults. */
+export function createInitialVariantRows(variantConfig, existingVariants = []) {
+    if (existingVariants?.length > 0) {
+        return existingVariants.map((v) => ({
+            color: v.color || "Default",
+            size: v.size || "One Size",
+            stock: v.stock ?? 0,
+        }));
+    }
+
+    const cfg = variantConfig || {};
+    const sizesOnly = cfg.supportsSizes && !cfg.supportsColors;
+    const colorsOnly = cfg.supportsColors && !cfg.supportsSizes;
+    const both = cfg.supportsSizes && cfg.supportsColors;
+    const neither = !cfg.supportsSizes && !cfg.supportsColors;
+
+    if (neither) {
+        return [{ color: "Default", size: "One Size", stock: 100 }];
+    }
+    if (sizesOnly) {
+        const opts = cfg.sizeOptions?.length ? cfg.sizeOptions : ["XS", "S", "M", "L", "XL"];
+        return opts.map((size) => ({ color: "Default", size, stock: 0 }));
+    }
+    if (colorsOnly) {
+        return [{ color: "Black", size: "One Size", stock: 100 }];
+    }
+    if (both) {
+        return [
+            {
+                color: "Black",
+                size: cfg.sizeOptions?.[0] || "M",
+                stock: 100,
+            },
+        ];
+    }
+    return [{ color: "Default", size: "One Size", stock: 100 }];
+}
+
+/** Convert admin variant rows to product.variants payload. */
+export function buildVariantsFromAdminRows(rows, variantConfig) {
+    const cfg = variantConfig || {};
+    const normalized = (rows || []).map((r) => ({
+        color: cfg.supportsColors ? (r.color?.trim() || "Default") : "Default",
+        size: cfg.supportsSizes ? (r.size?.trim() || "One Size") : "One Size",
+        stock: Math.max(0, Number(r.stock) || 0),
+    }));
+
+    const withStock = normalized.filter((r) => r.stock > 0);
+    if (withStock.length > 0) return withStock;
+    if (normalized.length === 1) return normalized;
+    return buildDefaultProductVariant(0, cfg);
 }

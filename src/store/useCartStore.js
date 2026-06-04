@@ -1,20 +1,24 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { findMatchingVariant } from '@/app/lib/productUtils';
 
 export const useCartStore = create(
     persist(
         (set, get) => ({
             items: [],
+            hasHydrated: false,
+            setHasHydrated: () => set({ hasHydrated: true }),
 
             addItem: (product, variant, quantity = 1) => {
+                const resolvedVariant = findMatchingVariant(product.variants, variant);
                 const qty = Math.max(1, Math.floor(Number(quantity) || 1));
-                const maxStock = variant?.stock > 0 ? variant.stock : null;
+                const maxStock = resolvedVariant?.stock > 0 ? resolvedVariant.stock : null;
                 const { items } = get();
                 const existingItemIndex = items.findIndex(
                     (item) =>
                         item._id === product._id &&
-                        item.variant.size === variant.size &&
-                        item.variant.color === variant.color
+                        item.variant.size === resolvedVariant.size &&
+                        item.variant.color === resolvedVariant.color
                 );
 
                 if (existingItemIndex > -1) {
@@ -28,7 +32,7 @@ export const useCartStore = create(
                     set({
                         items: [...items, {
                             ...product,
-                            variant,
+                            variant: resolvedVariant,
                             quantity: initialQty,
                         }],
                     });
@@ -76,7 +80,14 @@ export const useCartStore = create(
             }
         }),
         {
-            name: 'shein-cart-storage', // unique name
+            name: 'shein-cart-storage',
+            partialize: (state) => ({ items: state.items }),
+            onRehydrateStorage: () => (state, error) => {
+                if (error) {
+                    console.error("[cart] Failed to rehydrate from storage:", error);
+                }
+                useCartStore.getState().setHasHydrated(true);
+            },
         }
     )
 );

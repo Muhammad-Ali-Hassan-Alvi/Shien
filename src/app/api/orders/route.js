@@ -33,14 +33,22 @@ export async function POST(req) {
         await connectDB();
         const session = await auth();
 
-        if (!session?.user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
         const { items, shippingInfo, paymentMethod } = await req.json();
 
         if (!items || items.length === 0) {
             return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+        }
+
+        if (!shippingInfo?.fullName?.trim() || !shippingInfo?.phone?.trim() || !shippingInfo?.address?.trim()) {
+            return NextResponse.json({ error: "Please complete all shipping fields" }, { status: 400 });
+        }
+
+        const sessionEmail = session?.user?.email?.trim()?.toLowerCase() || "";
+        const formEmail = shippingInfo?.email?.trim()?.toLowerCase() || "";
+        const recipientEmail = sessionEmail || formEmail;
+
+        if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+            return NextResponse.json({ error: "A valid email address is required" }, { status: 400 });
         }
 
         if (paymentMethod && paymentMethod !== "COD") {
@@ -51,43 +59,54 @@ export async function POST(req) {
         }
 
         const method = "COD";
+        const userId = session?.user?.id || null;
+        const normalizedShipping = {
+            ...shippingInfo,
+            fullName: shippingInfo.fullName.trim(),
+            phone: shippingInfo.phone.trim(),
+            address: shippingInfo.address.trim(),
+            city: shippingInfo.city?.trim() || "Other",
+            email: recipientEmail,
+        };
+
         let emailStatus = { customerEmailSent: false, customerEmailReason: null, recipient: null };
 
-        const newOrder = await OrderService.createOrder(session.user.id, {
+        const newOrder = await OrderService.createOrder(userId, {
             items,
-            shippingInfo,
+            shippingInfo: normalizedShipping,
             paymentMethod: method,
         });
 
-        let userRecord = null;
-        try {
-            userRecord = await User.findById(session.user.id);
-            if (userRecord) {
-                const exists = userRecord.addresses?.some(
-                    (a) => a.address === shippingInfo.address && a.city === shippingInfo.city
-                );
-                if (!exists) {
-                    userRecord.addresses.push({
-                        fullName: shippingInfo.fullName,
-                        phone: shippingInfo.phone,
-                        address: shippingInfo.address,
-                        city: shippingInfo.city,
-                        isDefault: userRecord.addresses.length === 0,
-                    });
-                    await userRecord.save();
+        if (userId) {
+            try {
+                const userRecord = await User.findById(userId);
+                if (userRecord) {
+                    const exists = userRecord.addresses?.some(
+                        (a) => a.address === normalizedShipping.address && a.city === normalizedShipping.city
+                    );
+                    if (!exists) {
+                        userRecord.addresses.push({
+                            fullName: normalizedShipping.fullName,
+                            phone: normalizedShipping.phone,
+                            address: normalizedShipping.address,
+                            city: normalizedShipping.city,
+                            isDefault: userRecord.addresses.length === 0,
+                        });
+                        await userRecord.save();
+                    }
                 }
+            } catch (e) {
+                console.error("Address save failed", e);
             }
-        } catch (e) {
-            console.error("Address save failed", e);
         }
 
         if (method === "COD") {
             try {
                 const emailResult = await notifyOrderPlaced({
                     order: newOrder,
-                    userId: session.user.id,
-                    shippingInfo,
-                    sessionEmail: session.user.email,
+                    userId,
+                    shippingInfo: normalizedShipping,
+                    sessionEmail: recipientEmail,
                 });
                 emailStatus = emailResult;
             } catch (notifyErr) {
@@ -106,7 +125,7 @@ export async function POST(req) {
                 paymentMethod: method,
                 requiresPayment: method === "GOPAYFAST",
                 emailSent: emailStatus.customerEmailSent,
-                emailTo: emailStatus.recipient || session.user.email || null,
+                emailTo: emailStatus.recipient || recipientEmail,
                 emailError: emailStatus.customerEmailReason,
             },
             { status: 201 }

@@ -6,11 +6,13 @@ import { createTicket } from "@/app/lib/help-actions";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import StyledSelect from "@/components/ui/StyledSelect";
 
 export default function NewTicketPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const orderIdFromUrl = searchParams.get("orderId") || "";
     const [loading, setLoading] = useState(false);
     const [priority, setPriority] = useState("Medium");
 
@@ -58,6 +60,7 @@ export default function NewTicketPage() {
                         <input
                             name="orderId"
                             type="text"
+                            defaultValue={orderIdFromUrl}
                             placeholder="If related to an order"
                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-black/5 focus:border-gray-300 font-medium text-gray-900 placeholder:text-gray-400 transition-all"
                         />

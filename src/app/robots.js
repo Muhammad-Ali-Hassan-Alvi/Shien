@@ -1,7 +1,6 @@
-const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    "http://localhost:3000";
+import { getAppBaseUrl } from "@/app/lib/siteUrl";
+
+const baseUrl = getAppBaseUrl();
 
 export default function robots() {
     return {

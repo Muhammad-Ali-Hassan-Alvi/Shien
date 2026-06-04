@@ -173,13 +173,83 @@ export function buildMegaMenuColumns(parentNode) {
     });
 }
 
-/** Default product options when no category overrides exist (clothing-style). */
+/** Safest fallback when category is unknown — stock/quantity only. */
 export const DEFAULT_VARIANT_SETTINGS = {
-    supportsSizes: true,
-    supportsColors: true,
-    sizeOptions: ["XS", "S", "M", "L", "XL"],
-    inheritedFrom: null,
+    supportsSizes: false,
+    supportsColors: false,
+    sizeOptions: [],
+    inheritedFrom: "store default",
 };
+
+const CLOTHING_SIZE_OPTIONS = ["XS", "S", "M", "L", "XL"];
+
+/** Walk flat list to the top-level root category for a named category. */
+export function getRootCategory(flatCategories, categoryName) {
+    if (!categoryName || !flatCategories?.length) return null;
+
+    const byId = new Map(flatCategories.map((c) => [String(c._id), c]));
+    let node = flatCategories.find(
+        (c) => c.name?.toLowerCase() === categoryName.toLowerCase()
+    );
+    if (!node) return null;
+
+    while (node.parent) {
+        const parent = byId.get(String(node.parent));
+        if (!parent) break;
+        node = parent;
+    }
+    return node;
+}
+
+/**
+ * Smart defaults by department type when no customVariantSettings are saved.
+ * Set rules once on the root (e.g. Clothing, Automotive) — all children inherit.
+ */
+export function getDepartmentVariantPreset(rootCategoryName) {
+    const n = (rootCategoryName || "").toLowerCase();
+
+    if (/(cloth|fashion|wear|apparel|woman|women|man|men|shoe|footwear|jewel|watch|bag)/.test(n)) {
+        return {
+            supportsSizes: true,
+            supportsColors: true,
+            sizeOptions: CLOTHING_SIZE_OPTIONS,
+            inheritedFrom: rootCategoryName,
+            preset: "clothing",
+        };
+    }
+
+    if (/(automotive|motorbike|motor|vehicle|car|bike|rickshaw|loader)/.test(n)) {
+        return {
+            supportsSizes: false,
+            supportsColors: true,
+            sizeOptions: [],
+            inheritedFrom: rootCategoryName,
+            preset: "automotive",
+        };
+    }
+
+    if (/(electronic|tech|phone|computer|laptop|gadget|accessory|accessories)/.test(n)) {
+        return {
+            supportsSizes: false,
+            supportsColors: false,
+            sizeOptions: [],
+            inheritedFrom: rootCategoryName,
+            preset: "electronics",
+        };
+    }
+
+    return { ...DEFAULT_VARIANT_SETTINGS, preset: "general" };
+}
+
+export function formatVariantSettingsSource(settings) {
+    if (!settings) return "";
+    if (settings.inheritedFrom && settings.inheritedFrom !== "store default") {
+        return settings.preset
+            ? `department preset (${settings.inheritedFrom})`
+            : `from ${settings.inheritedFrom}`;
+    }
+    return "store default (stock only)";
+}
 
 /** Flat list from a category tree (strips children, keeps parent ref). */
 export function flattenCategoriesFlat(tree) {
@@ -198,7 +268,9 @@ export function flattenCategoriesFlat(tree) {
 
 /**
  * Resolve effective size/color rules for a category name.
- * Walks up the tree until a category with customVariantSettings is found.
+ * 1. Nearest ancestor with customVariantSettings saved in admin
+ * 2. Else department preset from root category (Clothing → sizes+colors, Automotive → colors, etc.)
+ * 3. Else store default (stock only)
  */
 export function resolveEffectiveVariantSettings(flatCategories, categoryName) {
     if (!categoryName || !flatCategories?.length) {
@@ -206,27 +278,40 @@ export function resolveEffectiveVariantSettings(flatCategories, categoryName) {
     }
 
     const byId = new Map(flatCategories.map((c) => [String(c._id), c]));
-    let node = flatCategories.find(
+    const startNode = flatCategories.find(
         (c) => c.name?.toLowerCase() === categoryName.toLowerCase()
     );
-    if (!node) {
+    if (!startNode) {
         return { ...DEFAULT_VARIANT_SETTINGS };
     }
 
+    let node = startNode;
     while (node) {
         if (node.customVariantSettings === true) {
+            const preset = getDepartmentVariantPreset(
+                getRootCategory(flatCategories, node.name)?.name
+            );
             return {
                 supportsSizes: node.supportsSizes !== false,
                 supportsColors: node.supportsColors !== false,
                 sizeOptions:
                     node.sizeOptions?.length > 0
                         ? node.sizeOptions
-                        : DEFAULT_VARIANT_SETTINGS.sizeOptions,
+                        : node.supportsSizes !== false
+                          ? preset.sizeOptions?.length
+                              ? preset.sizeOptions
+                              : CLOTHING_SIZE_OPTIONS
+                          : [],
                 inheritedFrom: node.name,
             };
         }
         const parentId = node.parent ? String(node.parent) : null;
         node = parentId ? byId.get(parentId) : null;
+    }
+
+    const root = getRootCategory(flatCategories, categoryName);
+    if (root?.name) {
+        return getDepartmentVariantPreset(root.name);
     }
 
     return { ...DEFAULT_VARIANT_SETTINGS };
@@ -274,7 +359,7 @@ export function getGroupsForDepartment(dept) {
         }));
     }
 
-    return [{ title: "Shop", items: children }];
+    return [{ title: dept.name, items: children }];
 }
 
 /** Full Sapphire-style hamburger sidebar for the active department tab. */
