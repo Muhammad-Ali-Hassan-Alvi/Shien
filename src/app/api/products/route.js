@@ -1,4 +1,5 @@
 import connectDB from "@/app/lib/config/db";
+import { deleteProductCloudinaryImages } from "@/app/lib/cloudinaryImages";
 import Product from "@/app/lib/model/Product";
 import Category from "@/app/lib/model/Category";
 import User from "@/app/lib/model/User";
@@ -371,6 +372,7 @@ export async function DELETE(req) {
                     { status: 400 }
                 );
             }
+            await deleteProductCloudinaryImages(product);
             await Product.findByIdAndDelete(id);
             return NextResponse.json({ success: true, permanent: true });
         }

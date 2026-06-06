@@ -4,6 +4,7 @@
 import { auth } from "@/auth";
 import connectDB from "@/app/lib/config/db";
 import Product from "@/app/lib/model/Product";
+import { deleteProductCloudinaryImages } from "@/app/lib/cloudinaryImages";
 import { revalidatePath } from "next/cache";
 
 function normalizeId(productId) {
@@ -105,6 +106,7 @@ export async function deleteProductPermanently(productId) {
             return { error: "Move product to recycle bin before permanent delete" };
         }
 
+        await deleteProductCloudinaryImages(product);
         await Product.findByIdAndDelete(id);
 
         revalidateProductPaths();
@@ -182,6 +184,7 @@ export async function deleteProductsPermanentlyBulk(productIds) {
         if (!product.isArchived) {
             return { error: "Move product to recycle bin before permanent delete" };
         }
+        await deleteProductCloudinaryImages(product);
         await Product.findByIdAndDelete(id);
         return { success: true };
     });
