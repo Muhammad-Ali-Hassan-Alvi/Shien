@@ -12,6 +12,9 @@ import {
 const submenuLinkClass =
     "inline-block text-sm border-b-2 border-transparent pb-0.5 transition-colors hover:text-indigo-600 hover:border-indigo-600";
 
+const NAV_TEXT_CLASS =
+    "font-[family-name:var(--font-montserrat)] text-base font-normal leading-6 text-[#212529]";
+
 export default function CategoryListPanel({ isOpen, onClose, lines = [], allCategories = [] }) {
     const lineOptions = useMemo(() => {
         if (lines.length > 0) return lines;
@@ -103,9 +106,9 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
                     <Link
                         href="/"
                         onClick={onClose}
-                        className="text-2xl font-playfair font-black tracking-tight text-gray-900"
+                        className={`py-2 text-center hover:opacity-70 transition-opacity whitespace-nowrap ${NAV_TEXT_CLASS}`}
                     >
-                        iMART
+                        Islamabad Mart
                     </Link>
                     <button
                         type="button"

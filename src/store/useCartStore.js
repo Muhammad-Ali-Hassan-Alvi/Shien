@@ -127,14 +127,16 @@ export const useCartStore = create(
     )
 );
 
-useCartStore.persist.onFinishHydration((persistedState) => {
-    const { _skipPersistedHydrate } = useCartStore.getState();
+if (typeof window !== "undefined" && useCartStore.persist?.onFinishHydration) {
+    useCartStore.persist.onFinishHydration(() => {
+        const { _skipPersistedHydrate } = useCartStore.getState();
 
-    if (_skipPersistedHydrate) {
-        useCartStore.setState({ items: [], hasHydrated: true, _skipPersistedHydrate: false });
-        writeCartToStorage([]);
-        return;
-    }
+        if (_skipPersistedHydrate) {
+            useCartStore.setState({ items: [], hasHydrated: true, _skipPersistedHydrate: false });
+            writeCartToStorage([]);
+            return;
+        }
 
-    useCartStore.setState({ hasHydrated: true });
-});
+        useCartStore.setState({ hasHydrated: true });
+    });
+}

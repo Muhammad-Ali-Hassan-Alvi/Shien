@@ -11,8 +11,8 @@ export default function Footer() {
         <footer className="relative bg-white/60 backdrop-blur-xl border-t border-white/40 pt-24 pb-12 overflow-hidden">
 
             {/* Artistic Watermark Background */}
-            <h1 className="absolute bottom-[-5%] left-1/2 -translate-x-1/2 text-[15vw] font-black text-black/[0.03] pointer-events-none select-none tracking-tighter leading-none whitespace-nowrap z-0">
-                iMART LUXE
+            <h1 className="absolute bottom-[-5%] left-1/2 -translate-x-1/2 text-[12vw] font-black text-black/[0.03] pointer-events-none select-none tracking-[0.08em] leading-none whitespace-nowrap z-0 uppercase">
+                Islamabad Mart
             </h1>
 
             <div className="max-w-7xl mx-auto px-6 relative z-10">
@@ -83,7 +83,7 @@ export default function Footer() {
 
                 {/* Bottom */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-gray-200">
-                    <p className="text-xs text-gray-400 font-medium">© {year} iMART. All rights reserved.</p>
+                    <p className="text-xs text-gray-400 font-medium">© {year} Islamabad Mart. All rights reserved.</p>
                     <div className="flex items-center gap-6 opacity-60 grayscale hover:grayscale-0 transition-all">
                         {/* Mock Payment Badges - Text or SVGs */}
                         <span className="font-black italic text-lg text-gray-800">VISA</span>

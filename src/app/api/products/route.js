@@ -10,6 +10,10 @@ import {
     ACTIVE_CATEGORY_FILTER,
     slugify,
 } from "@/app/lib/categoryUtils";
+import {
+    getShopVisibleCategoryNames,
+    buildShopCategoryQuery,
+} from "@/app/lib/shopCategories";
 import { createManyUserNotifications, notifyLowStockIfNeeded } from "@/lib/notificationService";
 import {
     buildSaleQuery,
@@ -99,6 +103,8 @@ export async function GET(req) {
             query.isArchived = { $ne: true };
         }
 
+        const shopCategoryNames = !isAdminList ? await getShopVisibleCategoryNames() : null;
+
         if (category) {
             const categoryNames = await resolveCategoryNames(category);
             if (categoryNames?.length === 1) {
@@ -107,8 +113,16 @@ export async function GET(req) {
                 query.category = {
                     $in: categoryNames.map((n) => new RegExp(`^${escapeRegex(n)}$`, "i")),
                 };
+            } else if (!isAdminList) {
+                return NextResponse.json({
+                    products: [],
+                    hasMore: false,
+                    page,
+                    total: 0,
+                    priceBounds: null,
+                });
             } else {
-                // Slug/name not in category tree — flexible match (e.g. category-2 → Category 2)
+                // Admin — flexible match (e.g. category-2 → Category 2)
                 const parts = category.split(/[-_\s]+/).filter(Boolean).map(escapeRegex);
                 if (parts.length > 0) {
                     query.category = new RegExp(parts.join("[\\s\\-_]*"), "i");
@@ -116,7 +130,10 @@ export async function GET(req) {
                     query.category = new RegExp(escapeRegex(category), "i");
                 }
             }
+        } else if (!isAdminList && shopCategoryNames) {
+            Object.assign(query, buildShopCategoryQuery(shopCategoryNames));
         }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },

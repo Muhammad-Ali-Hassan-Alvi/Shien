@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { ChevronRight, ChevronDown, Plus, FolderPlus, Trash2, Tag, Edit } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, FolderPlus, Trash2, Tag, Edit, Eye, EyeOff } from "lucide-react";
 import DeleteModal from "@/components/admin/DeleteModal";
 import Loader from "@/components/admin/Loader";
 import CategoryUpdateModal from "@/components/admin/CategoryUpdateModal";
@@ -22,10 +22,12 @@ function CategoryTreeNode({
     onEdit,
     onDelete,
     onAddChild,
+    onToggleVisibility,
     flatCategories,
 }) {
     const hasChildren = node.children?.length > 0;
     const isExpanded = expanded.has(node._id);
+    const isVisible = node.isActive !== false;
     const variantLabel = formatVariantSettingsLabel(
         resolveEffectiveVariantSettings(flatCategories, node.name)
     );
@@ -33,7 +35,9 @@ function CategoryTreeNode({
     return (
         <div>
             <div
-                className="group flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                className={`group flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
+                    !isVisible ? "opacity-60 bg-gray-50/80" : ""
+                }`}
                 style={{ paddingLeft: `${depth * 20 + 12}px` }}
             >
                 <button
@@ -54,11 +58,11 @@ function CategoryTreeNode({
                         {node.isLine && (
                             <span className="text-indigo-600 font-bold uppercase tracking-wide">Line</span>
                         )}
-                        {!node.isActive && <span className="text-red-400">Inactive</span>}
-                        {parentNode && parentNode.isActive === false && (
-                            <span className="text-orange-500">Hidden (parent inactive)</span>
+                        {!isVisible && <span className="text-red-500 font-medium">Hidden from shop</span>}
+                        {parentNode && parentNode.isActive === false && isVisible && (
+                            <span className="text-orange-500">Parent hidden</span>
                         )}
-                        {!node.showInNav && <span className="text-amber-500">Hidden from top nav</span>}
+                        {!node.showInNav && isVisible && <span className="text-amber-500">Hidden from top nav</span>}
                         <span className="text-indigo-500">{variantLabel}</span>
                         {node.customVariantSettings && (
                             <span className="text-violet-600 font-medium">Custom rules</span>
@@ -67,7 +71,25 @@ function CategoryTreeNode({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1">
+                    <button
+                        type="button"
+                        onClick={() => onToggleVisibility(node)}
+                        className={`p-1.5 rounded-md transition-colors ${
+                            isVisible
+                                ? "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                : "text-red-500 hover:text-red-700 hover:bg-red-50"
+                        }`}
+                        title={
+                            isVisible
+                                ? "Hide from storefront (nav, filters, products)"
+                                : "Show on storefront"
+                        }
+                        aria-label={isVisible ? "Hide category from shop" : "Show category on shop"}
+                    >
+                        {isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
+                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         type="button"
                         onClick={() => onAddChild(node)}
@@ -92,6 +114,7 @@ function CategoryTreeNode({
                     >
                         <Trash2 size={14} />
                     </button>
+                    </div>
                 </div>
             </div>
 
@@ -108,6 +131,7 @@ function CategoryTreeNode({
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onAddChild={onAddChild}
+                            onToggleVisibility={onToggleVisibility}
                             flatCategories={flatCategories}
                         />
                     ))}
@@ -216,6 +240,11 @@ export default function CategoriesPage() {
         }
     };
 
+    const handleToggleVisibility = async (node) => {
+        const isVisible = node.isActive !== false;
+        await handleUpdate(node._id, { isActive: !isVisible });
+    };
+
     const handleRemoveProduct = async (productId) => {
         const toastId = toast.loading("Removing product...");
         try {
@@ -310,6 +339,7 @@ export default function CategoriesPage() {
                                 onEdit={setEditModal}
                                 onDelete={(id) => setDeleteState({ isOpen: true, id, isDeleting: false })}
                                 onAddChild={(parent) => setAddingUnder({ parentId: parent._id, name: "" })}
+                                onToggleVisibility={handleToggleVisibility}
                                 flatCategories={flatCategories}
                             />
                         ))}

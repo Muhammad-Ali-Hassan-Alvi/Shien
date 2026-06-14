@@ -4,9 +4,10 @@
 
 import { useState, useEffect } from "react";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { Filter, SlidersHorizontal } from "lucide-react";
+import { Filter } from "lucide-react";
 
 import { toast } from "react-hot-toast";
 
@@ -20,7 +21,10 @@ import ProductFilterSidebar from "@/components/ProductFilterSidebar";
 
 import { productsLink } from "@/app/lib/navLinks";
 
-import { findCategoryInTree, formatCategoryBreadcrumb } from "@/app/lib/categoryUtils";
+import { findCategoryInTree, findCategoryPathInTree, getSubcategoryNavItems } from "@/app/lib/categoryUtils";
+
+const BREADCRUMB_CLASS =
+    "font-[family-name:var(--font-montserrat)] text-base font-normal leading-6 text-[#212529]";
 
 
 
@@ -246,31 +250,95 @@ export default function ShopPage(props) {
 
 
 
-    const activeCat = filters.category
-        ? findCategoryInTree(categoryTree, filters.category)
-        : null;
+    const categoryPath = filters.category
+        ? findCategoryPathInTree(categoryTree, filters.category) || [filters.category]
+        : [];
 
-    const categoryFilterLabel = filters.category
-        ? formatCategoryBreadcrumb(categoryTree, filters.category)
-        : "";
-
-
+    const subcategories = filters.category
+        ? getSubcategoryNavItems(categoryTree, filters.category)
+        : [];
 
     const pageTitle = filters.search
-
         ? `Results for "${filters.search}"`
-
-        : activeCat
-
-          ? activeCat.name
-
+        : categoryPath.length
+          ? categoryPath[categoryPath.length - 1]
           : "All Products";
 
 
 
     return (
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-12 w-full min-w-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10 w-full min-w-0">
+
+            {(filters.category || filters.search) && (
+                <header className="mb-8 md:mb-10 border-b border-gray-100 pb-6 md:pb-8">
+                    {filters.category && categoryPath.length > 0 && (
+                        <nav
+                            className={`flex flex-wrap items-center gap-x-2 gap-y-1 mb-4 ${BREADCRUMB_CLASS}`}
+                            aria-label="Breadcrumb"
+                        >
+                            <Link href="/" className="hover:opacity-70 transition-opacity">
+                                Home
+                            </Link>
+                            {categoryPath.map((name, index) => {
+                                const isLast = index === categoryPath.length - 1;
+                                return (
+                                    <span key={`${name}-${index}`} className="inline-flex items-center gap-2">
+                                        <span className="text-[#212529] select-none" aria-hidden>
+                                            &gt;
+                                        </span>
+                                        {isLast ? (
+                                            <span className="text-[#212529]">{name}</span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleCategoryChange(name)}
+                                                className="hover:opacity-70 transition-opacity text-left"
+                                            >
+                                                {name}
+                                            </button>
+                                        )}
+                                    </span>
+                                );
+                            })}
+                        </nav>
+                    )}
+
+                    <h1 className="text-3xl md:text-[2.5rem] leading-tight font-semibold uppercase tracking-[0.14em] text-gray-900">
+                        {pageTitle}
+                    </h1>
+
+                    {subcategories.length > 0 && (
+                        <nav
+                            className="mt-5 md:mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm md:text-[15px] font-medium uppercase tracking-[0.12em] text-gray-800"
+                            aria-label="Subcategories"
+                        >
+                            {subcategories.map((name, index) => {
+                                const isActive =
+                                    filters.category?.toLowerCase() === name.toLowerCase();
+                                return (
+                                    <span key={name} className="inline-flex items-center gap-4">
+                                        {index > 0 && (
+                                            <span className="text-gray-300 font-light select-none" aria-hidden>
+                                                |
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCategoryChange(name)}
+                                            className={`transition-colors hover:text-black ${
+                                                isActive ? "text-black font-semibold" : "text-gray-600"
+                                            }`}
+                                        >
+                                            {name}
+                                        </button>
+                                    </span>
+                                );
+                            })}
+                        </nav>
+                    )}
+                </header>
+            )}
 
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-12 min-w-0">
 
@@ -301,86 +369,55 @@ export default function ShopPage(props) {
 
                 <div className="flex-1 min-w-0">
 
-                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 md:mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+                        {!filters.category && !filters.search && (
+                            <div>
+                                <h1 className="text-3xl md:text-[2.5rem] leading-tight font-semibold uppercase tracking-[0.14em] text-gray-900">
+                                    {pageTitle}
+                                </h1>
+                                <p className="text-gray-500 mt-2 text-base">
+                                    Explore our latest collection
+                                </p>
+                            </div>
+                        )}
 
-                        <div>
-
-                            <h1 className="text-2xl md:text-4xl font-playfair font-bold text-gray-900">
-
-                                {pageTitle}
-
-                            </h1>
-
-                            <p className="text-gray-500 mt-1 text-sm md:text-base">
-
-                                {filters.category
-
-                                    ? "Browse products in this category"
-
-                                    : "Explore our latest collection"}
-
-                            </p>
-
-                        </div>
-
-
-
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-
+                        <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto sm:ml-auto">
                             <button
-
                                 type="button"
-
                                 onClick={() => setMobileFiltersOpen(true)}
-
-                                className="lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50"
-
+                                className="lg:hidden inline-flex items-center gap-1.5 text-sm md:text-[15px] font-semibold uppercase tracking-[0.14em] text-gray-900 hover:text-black"
                             >
-
-                                <SlidersHorizontal size={16} />
-
-                                Filters
-
+                                Filter
+                                <span className="text-base leading-none">+</span>
                             </button>
 
-                            <StyledSelect
-
-                                className="w-full sm:w-auto sm:min-w-[180px]"
-
-                                value={filters.sort}
-
-                                onChange={(e) => handleSortChange(e.target.value)}
-
-                                options={SORT_OPTIONS}
-
-                                aria-label="Sort products"
-
-                            />
-
+                            <div className="flex items-center gap-2">
+                                <span className="hidden sm:inline text-sm md:text-[15px] font-semibold uppercase tracking-[0.14em] text-gray-900">
+                                    Sort
+                                </span>
+                                <span className="hidden sm:inline text-base leading-none text-gray-900">+</span>
+                                <StyledSelect
+                                    className="w-full sm:w-auto sm:min-w-[200px]"
+                                    value={filters.sort}
+                                    onChange={(e) => handleSortChange(e.target.value)}
+                                    options={SORT_OPTIONS}
+                                    aria-label="Sort products"
+                                    size="md"
+                                />
+                            </div>
                         </div>
-
                     </div>
 
-
-
-                    {(filters.category || filters.minPrice || filters.maxPrice) && (
-                        <div className="flex flex-wrap items-center gap-2 mb-6">
-                            <span className="text-xs text-gray-500 uppercase tracking-wide">Active filters:</span>
-                            {filters.category && (
-                                <button
-                                    type="button"
-                                    onClick={() => handleCategoryChange("")}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white text-xs font-semibold rounded-full max-w-full"
-                                >
-                                    <span className="truncate">{categoryFilterLabel}</span>
-                                    <span className="opacity-70 shrink-0">×</span>
-                                </button>
-                            )}
+                    {(filters.minPrice || filters.maxPrice) && (
+                        <div className="flex flex-wrap items-center gap-2.5 mb-6">
+                            <span className="text-sm text-gray-500 uppercase tracking-[0.1em] font-medium">
+                                Active filters:
+                            </span>
                             {(filters.minPrice || filters.maxPrice) && (
                                 <button
                                     type="button"
                                     onClick={() => handlePriceApply("", "")}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 text-white text-xs font-semibold rounded-full"
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 text-white text-sm font-semibold rounded-full"
                                 >
                                     Rs. {filters.minPrice || priceBounds?.min || 0} – {filters.maxPrice || priceBounds?.max || "∞"}
                                     <span className="opacity-70">×</span>
@@ -409,14 +446,11 @@ export default function ShopPage(props) {
 
                             <Filter className="w-10 h-10 mx-auto mb-4 opacity-30" />
 
-                            <p className="text-xl">No products found matching your criteria.</p>
+                            <p className="text-xl md:text-2xl">No products found matching your criteria.</p>
 
                             <button
-
                                 onClick={clearFilters}
-
-                                className="mt-4 text-black underline hover:no-underline text-sm font-semibold"
-
+                                className="mt-4 text-black underline hover:no-underline text-base font-semibold"
                             >
 
                                 Clear Filters

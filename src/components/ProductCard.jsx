@@ -111,7 +111,7 @@ export default function ProductCard({ product }) {
             </span>
           </div>
 
-          <h3 className="text-sm font-bold text-gray-900 leading-snug mb-1 truncate font-mulish group-hover:text-indigo-700 transition-colors">
+          <h3 className="text-[15px] md:text-base font-bold text-gray-900 leading-snug mb-1 truncate font-mulish group-hover:text-indigo-700 transition-colors">
             {product.name}
           </h3>
 

@@ -20,6 +20,7 @@
   /* Fonts */
   --font-sans: var(--font-poppins);
   --font-display: var(--font-playfair);
+  --font-montserrat: var(--font-montserrat);
   
   /* Custom Animations */
   --animate-float: float 6s ease-in-out infinite;

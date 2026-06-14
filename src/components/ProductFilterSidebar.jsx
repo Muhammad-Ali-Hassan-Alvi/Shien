@@ -61,7 +61,7 @@ function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
                             <button
                                 type="button"
                                 onClick={() => onSelect(node.name)}
-                                className={`flex-1 text-left py-1.5 px-2 rounded-md text-sm transition-colors ${
+                                className={`flex-1 text-left py-2 px-2.5 rounded-md text-[15px] transition-colors ${
                                     isActive
                                         ? "bg-gray-900 text-white font-semibold"
                                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -103,12 +103,12 @@ export default function ProductFilterSidebar({
         <div className="space-y-8">
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900">Category</h3>
+                    <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-gray-900">Category</h3>
                     {activeCategory && (
                         <button
                             type="button"
                             onClick={() => onCategoryChange("")}
-                            className="text-xs text-gray-500 hover:text-gray-900 underline"
+                            className="text-sm text-gray-500 hover:text-gray-900 underline"
                         >
                             Clear
                         </button>
@@ -117,7 +117,7 @@ export default function ProductFilterSidebar({
                 <button
                     type="button"
                     onClick={() => onCategoryChange("")}
-                    className={`w-full text-left py-2 px-3 rounded-md text-sm mb-2 transition-colors ${
+                    className={`w-full text-left py-2.5 px-3 rounded-md text-[15px] mb-2 transition-colors ${
                         !activeCategory
                             ? "bg-gray-900 text-white font-semibold"
                             : "text-gray-600 hover:bg-gray-100"
@@ -137,7 +137,7 @@ export default function ProductFilterSidebar({
             </div>
 
             <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-4">Price</h3>
+                <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-gray-900 mb-4">Price Range</h3>
                 {priceBounds ? (
                     <ProductPriceFilter
                         minPrice={minPrice}
@@ -146,7 +146,7 @@ export default function ProductFilterSidebar({
                         onApply={onPriceApply}
                     />
                 ) : (
-                    <p className="text-xs text-gray-400">Loading price range…</p>
+                    <p className="text-sm text-gray-400">Loading price range…</p>
                 )}
             </div>
 
@@ -181,7 +181,7 @@ export default function ProductFilterSidebar({
                     />
                     <aside className="fixed top-0 left-0 h-full w-[min(100%,300px)] bg-white z-50 shadow-2xl overflow-y-auto lg:hidden">
                         <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                            <span className="font-bold text-gray-900">Filters</span>
+                            <span className="font-bold text-base text-gray-900">Filters</span>
                             <button type="button" onClick={onMobileClose} className="p-2">
                                 <X size={20} />
                             </button>

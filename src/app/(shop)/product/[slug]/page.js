@@ -7,7 +7,9 @@ import {
     buildCategoryTree,
     flattenCategoriesFlat,
     resolveEffectiveVariantSettings,
+    isCategoryVisibleInShop,
 } from "@/app/lib/categoryUtils";
+import { getShopCategoryTree } from "@/app/lib/shopCategories";
 
 // Fetch data logic - return a plain object (no ObjectId/buffer) for Client Components
 async function getProduct(slug) {
@@ -52,9 +54,14 @@ export async function generateMetadata({ params }) {
 async function getRelatedProducts(category, excludeId, limit = 4) {
     if (!category) return [];
     await connectDB();
+
+    const categoryTree = await getShopCategoryTree();
+    if (!isCategoryVisibleInShop(categoryTree, category)) return [];
+
     const related = await Product.find({
-        category,
+        category: new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
         _id: { $ne: excludeId },
+        isArchived: { $ne: true },
     })
         .limit(limit)
         .lean();
@@ -73,6 +80,11 @@ export default async function ProductPage({ params }) {
         notFound();
     }
 
+    const categoryTree = await getShopCategoryTree();
+    if (product.category && !isCategoryVisibleInShop(categoryTree, product.category)) {
+        notFound();
+    }
+
     const relatedProducts = await getRelatedProducts(
         product.category,
         product._id,
@@ -80,8 +92,8 @@ export default async function ProductPage({ params }) {
     );
 
     const categories = await Category.find({}).lean();
-    const categoryTree = buildCategoryTree(categories);
-    const flatCategories = flattenCategoriesFlat(categoryTree);
+    const adminCategoryTree = buildCategoryTree(categories);
+    const flatCategories = flattenCategoriesFlat(adminCategoryTree);
     const variantConfig = resolveEffectiveVariantSettings(flatCategories, product.category);
 
     return (

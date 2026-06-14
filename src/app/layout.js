@@ -1,4 +1,4 @@
-import { Poppins, Playfair_Display } from "next/font/google";
+import { Poppins, Playfair_Display, Montserrat } from "next/font/google";
 import "./globals.css";
 import ClientLayoutWrapper from "@/components/ClientLayoutWrapper";
 
@@ -6,6 +6,12 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
   variable: "--font-poppins"
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-montserrat",
 });
 
 const playfair = Playfair_Display({
@@ -16,8 +22,8 @@ const playfair = Playfair_Display({
 import { auth } from "@/auth";
 
 export const metadata = {
-  title: "iMART | High-End Fashion",
-  description: "Premium Fashion for Pakistan",
+  title: "Islamabad Mart | Online Shopping",
+  description: "Shop online at Islamabad Mart",
 };
 
 export default async function RootLayout({ children }) {
@@ -32,7 +38,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${poppins.variable} ${playfair.variable} font-sans antialiased text-black relative min-h-screen overflow-x-hidden`}
+        className={`${poppins.variable} ${montserrat.variable} ${playfair.variable} font-sans antialiased text-black relative min-h-screen overflow-x-hidden`}
         suppressHydrationWarning={true}
       >
         <div className="mesh-bg">

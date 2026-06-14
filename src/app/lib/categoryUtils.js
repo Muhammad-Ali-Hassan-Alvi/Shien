@@ -86,6 +86,44 @@ export function findCategoryPathInTree(tree, value) {
     return walk(tree || [], []);
 }
 
+/** Direct children of the top-level department (Sapphire-style collection tabs). */
+export function getDepartmentSubcategories(tree, categoryName) {
+    const path = findCategoryPathInTree(tree, categoryName);
+    if (!path?.length) return { departmentName: null, subcategories: [] };
+
+    const departmentName = path[0];
+    const department = findCategoryInTree(tree, departmentName);
+    return {
+        departmentName,
+        subcategories: (department?.children || []).map((child) => child.name),
+    };
+}
+
+/**
+ * Pipe-separated subcategory row for collection pages.
+ * Parent with children → show children; leaf → show siblings under same parent.
+ */
+export function getSubcategoryNavItems(tree, categoryName) {
+    if (!categoryName) return [];
+
+    const active = findCategoryInTree(tree, categoryName);
+    if (!active) return [];
+
+    if (active.children?.length) {
+        return active.children.map((child) => child.name);
+    }
+
+    const path = findCategoryPathInTree(tree, categoryName);
+    if (!path?.length) return [];
+
+    if (path.length === 1) {
+        return (active.children || []).map((child) => child.name);
+    }
+
+    const parent = findCategoryInTree(tree, path[path.length - 2]);
+    return (parent?.children || []).map((child) => child.name);
+}
+
 /** Full breadcrumb string, e.g. "Automotive and Motorbike › Bike". */
 export function formatCategoryBreadcrumb(tree, categoryName) {
     const path = findCategoryPathInTree(tree, categoryName);
@@ -113,6 +151,25 @@ export function findCategoryInTree(tree, value) {
     };
 
     return walk(tree);
+}
+
+/** All category names in a tree (for shop product filtering). */
+export function collectCategoryNamesFromTree(tree) {
+    const names = [];
+    const walkNodes = (nodes) => {
+        for (const node of nodes || []) {
+            if (node.name) names.push(node.name);
+            walkNodes(node.children);
+        }
+    };
+    walkNodes(tree);
+    return names;
+}
+
+/** True when category exists in the active shop category tree. */
+export function isCategoryVisibleInShop(tree, categoryName) {
+    if (!categoryName?.trim()) return true;
+    return !!findCategoryInTree(tree, categoryName);
 }
 
 /** Options for admin selects: indented labels, all levels (root → subcategory). */

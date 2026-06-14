@@ -1,223 +1,56 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ShoppingBag, Search, User, Menu, X } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useCartStore } from "@/store/useCartStore";
-import { ShoppingBag, Search, User, Heart, ChevronDown, Menu, X } from "lucide-react";
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import NotificationDropdown from "./NotificationDropdown";
 import CategoryListPanel from "./CategoryListPanel";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { productsLink } from "@/app/lib/navLinks";
-import { getLineCategories, getNavCategories, buildMegaMenuColumns, filterNavCategoryTree } from "@/app/lib/categoryUtils";
+import { getLineCategories, getNavCategories } from "@/app/lib/categoryUtils";
 
-const STATIC_NAV = [
-    { label: "New In", href: productsLink({ sort: "new" }), static: true },
-];
+const NAV_FONT =
+    "font-[family-name:var(--font-montserrat)] font-normal text-[#212529]";
 
-const SALE_NAV = { label: "Sale", href: productsLink({ sort: "sale" }), highlight: true, static: true };
-
-const MAX_PRIMARY_NAV = 3;
-
-function useIsNavActive(href) {
-    const pathname = usePathname();
+function NavbarLinesRow({ lines }) {
     const searchParams = useSearchParams();
-    const currentQs = searchParams.toString();
-    const current = currentQs ? `${pathname}?${currentQs}` : pathname;
-    return current === href;
-}
+    const categoryParam = searchParams.get("category")?.toLowerCase();
 
-function navLinkClassName({ highlight, isActive, isOpen }) {
-    const active = isActive || isOpen;
-    const base =
-        "py-2 flex items-center gap-1 text-sm whitespace-nowrap transition-colors border-b-2 pb-0.5";
-
-    if (highlight) {
-        return `${base} font-bold ${
-            active
-                ? "text-red-500 border-red-500"
-                : "text-red-500 border-transparent hover:border-red-500"
-        }`;
-    }
-
-    return `${base} ${
-        active
-            ? "text-indigo-600 border-indigo-600"
-            : "text-gray-700 border-transparent hover:text-indigo-600 hover:border-indigo-600"
-    }`;
-}
-
-function MegaMenuLink({ href, children, nested = false, bold = false }) {
-    const isActive = useIsNavActive(href);
-    return (
-        <Link
-            href={href}
-            className={`block text-sm transition-colors border-b-2 mx-3 ${
-                nested ? "pl-5 pr-4 py-2" : "px-4 py-2.5"
-            } ${
-                bold ? "font-semibold" : ""
-            } ${
-                isActive
-                    ? "text-indigo-600 border-indigo-600 font-medium"
-                    : nested
-                      ? "text-gray-500 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
-                      : "text-gray-700 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
-            }`}
-        >
-            {children}
-        </Link>
-    );
-}
-
-function MegaMenuPanel({ subCategories, open, onEnter, onLeave }) {
-    if (!open || !subCategories?.length) return null;
-
-    return (
-        <div
-            className={`absolute left-0 top-[calc(100%+2px)] z-[100] w-56 min-w-[12rem] max-w-[280px] transition-all duration-150 ${
-                open ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
-            }`}
-            onMouseEnter={onEnter}
-            onMouseLeave={onLeave}
-        >
-            <ul className="bg-white border border-gray-200 shadow-xl rounded-xl py-2 overflow-hidden max-h-[min(70vh,420px)] overflow-y-auto">
-                {subCategories.map((sub) => (
-                    <li key={sub.title}>
-                        <MegaMenuLink href={productsLink({ category: sub.title })} bold>
-                            {sub.title}
-                        </MegaMenuLink>
-                        {sub.items.length > 0 &&
-                            sub.items.map((subItem) => (
-                                <MegaMenuLink
-                                    key={subItem.name}
-                                    href={productsLink({ category: subItem.name })}
-                                    nested
-                                >
-                                    {subItem.name}
-                                </MegaMenuLink>
-                            ))}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-}
-
-function categoryToNavItem(category) {
-    const megaColumns = buildMegaMenuColumns(category);
-    return {
-        label: category.name,
-        href: productsLink({ category: category.name }),
-        mega: !!megaColumns,
-        subCategories: megaColumns || [],
-        _id: category._id,
+    const isLineActive = (line) => {
+        if (!categoryParam) return false;
+        if (line.name.toLowerCase() === categoryParam) return true;
+        const walk = (node) => {
+            if (node.name.toLowerCase() === categoryParam) return true;
+            return (node.children || []).some(walk);
+        };
+        return walk(line);
     };
-}
 
-function NavMenuItem({ item }) {
-    const [open, setOpen] = useState(false);
-    const closeTimer = useRef(null);
-    const isActive = useIsNavActive(item.href);
-
-    const keepOpen = useCallback(() => {
-        if (closeTimer.current) {
-            clearTimeout(closeTimer.current);
-            closeTimer.current = null;
-        }
-        if (item.mega) setOpen(true);
-    }, [item.mega]);
-
-    const scheduleClose = useCallback(() => {
-        closeTimer.current = setTimeout(() => setOpen(false), 200);
-    }, []);
-
-    useEffect(() => () => {
-        if (closeTimer.current) clearTimeout(closeTimer.current);
-    }, []);
+    if (!lines?.length) return null;
 
     return (
-        <div className="relative" onMouseEnter={keepOpen} onMouseLeave={scheduleClose}>
-            <Link
-                href={item.href}
-                className={navLinkClassName({
-                    highlight: item.highlight,
-                    isActive,
-                    isOpen: open && item.mega,
-                })}
-            >
-                <span className="max-w-[140px] truncate" title={item.label}>
-                    {item.label}
-                </span>
-                {item.mega && (
-                    <ChevronDown size={14} className={`shrink-0 opacity-60 ${open ? "rotate-180" : ""}`} />
-                )}
-            </Link>
-            {item.mega && (
-                <MegaMenuPanel
-                    subCategories={item.subCategories}
-                    open={open}
-                    onEnter={keepOpen}
-                    onLeave={scheduleClose}
-                />
-            )}
-        </div>
-    );
-}
-
-function MoreMenuLink({ href, children }) {
-    const isActive = useIsNavActive(href);
-    return (
-        <Link
-            href={href}
-            className={`block px-4 py-2.5 text-sm transition-colors border-b-2 mx-3 ${
-                isActive
-                    ? "text-indigo-600 border-indigo-600 font-medium"
-                    : "text-gray-700 border-transparent hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-600"
-            }`}
-        >
-            {children}
-        </Link>
-    );
-}
-
-function MoreCategoriesMenu({ items }) {
-    const [open, setOpen] = useState(false);
-    const closeTimer = useRef(null);
-
-    const keepOpen = useCallback(() => {
-        if (closeTimer.current) clearTimeout(closeTimer.current);
-        setOpen(true);
-    }, []);
-
-    const scheduleClose = useCallback(() => {
-        closeTimer.current = setTimeout(() => setOpen(false), 200);
-    }, []);
-
-    if (!items.length) return null;
-
-    return (
-        <div className="relative" onMouseEnter={keepOpen} onMouseLeave={scheduleClose}>
-            <button
-                type="button"
-                className={navLinkClassName({ highlight: false, isActive: false, isOpen: open })}
-            >
-                More
-                <ChevronDown size={14} className={`shrink-0 opacity-60 ${open ? "rotate-180" : ""}`} />
-            </button>
+        <div className="w-full border-t border-white/50 px-4 sm:px-6 md:px-8 lg:px-10">
             <div
-                className={`absolute right-0 top-[calc(100%+2px)] z-[100] w-56 transition-all duration-150 ${
-                    open ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
-                }`}
-                onMouseEnter={keepOpen}
-                onMouseLeave={scheduleClose}
+                className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 md:gap-x-10 lg:gap-x-14 gap-y-2 py-3 w-full ${NAV_FONT}`}
             >
-                <ul className="bg-white border border-gray-200 shadow-xl rounded-xl py-2 overflow-hidden">
-                    {items.map((item) => (
-                        <li key={item._id || item.label}>
-                            <MoreMenuLink href={item.href}>{item.label}</MoreMenuLink>
-                        </li>
-                    ))}
-                </ul>
+                {lines.map((line) => {
+                    const active = isLineActive(line);
+                    return (
+                        <Link
+                            key={line._id}
+                            href={productsLink({ category: line.name })}
+                            className={`shrink-0 text-sm md:text-[15px] uppercase tracking-[0.12em] leading-6 pb-1 border-b-2 transition-colors whitespace-nowrap ${
+                                active
+                                    ? "text-[#212529] border-[#212529] font-medium"
+                                    : "text-gray-700 border-transparent hover:text-[#212529] hover:border-gray-400"
+                            }`}
+                            title={line.name}
+                        >
+                            {line.name}
+                        </Link>
+                    );
+                })}
             </div>
         </div>
     );
@@ -225,17 +58,8 @@ function MoreCategoriesMenu({ items }) {
 
 export default function Navbar() {
     const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const allProductsHref = productsLink();
-    const isAllProductsActive =
-        pathname === "/products" &&
-        !searchParams.get("category") &&
-        !searchParams.get("search") &&
-        !searchParams.get("sort");
     const { openCart } = useUIStore();
     const { items } = useCartStore();
-    const [scrolled, setScrolled] = useState(false);
     const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
     const [categoryTree, setCategoryTree] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
@@ -254,37 +78,15 @@ export default function Navbar() {
         fetchCategories();
     }, []);
 
-    /** Top navbar only — respects "Show in navbar". Hamburger uses full active tree. */
-    const navCategoriesForHeader = useMemo(
-        () => filterNavCategoryTree(categoryTree),
-        [categoryTree]
-    );
-
-    const navLines = useMemo(() => getLineCategories(categoryTree), [categoryTree]);
-
-    const dynamicNav = useMemo(
-        () => getNavCategories(navCategoriesForHeader).map(categoryToNavItem),
-        [navCategoriesForHeader]
-    );
-
-    const primaryNav = useMemo(() => {
-        const primary = dynamicNav.slice(0, MAX_PRIMARY_NAV);
-        const overflow = dynamicNav.slice(MAX_PRIMARY_NAV);
-        return { primary, overflow };
-    }, [dynamicNav]);
+    const navLines = useMemo(() => {
+        const lines = getLineCategories(categoryTree);
+        if (lines.length > 0) return lines;
+        return getNavCategories(categoryTree).slice(0, 8);
+    }, [categoryTree]);
 
     useEffect(() => {
-        const handleScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, []);
-
-    useEffect(() => {
-        if (categoryMenuOpen) {
-            document.body.style.overflow = "hidden";
-        } else {
-            document.body.style.overflow = "";
-        }
+        if (!categoryMenuOpen) return;
+        document.body.style.overflow = "hidden";
         return () => {
             document.body.style.overflow = "";
         };
@@ -292,171 +94,61 @@ export default function Navbar() {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        if (query.trim()) {
-            router.push(productsLink({ search: query.trim() }));
-            setShowSearch(false);
-            setCategoryMenuOpen(false);
-            setQuery("");
-        }
+        if (!query.trim()) return;
+        router.push(productsLink({ search: query.trim() }));
+        setShowSearch(false);
+        setCategoryMenuOpen(false);
+        setQuery("");
     };
 
     return (
         <>
-            <nav className={`sticky top-0 z-50 transition-all duration-500 overflow-visible ${scrolled ? "py-2" : "py-4"}`}>
-                <div
-                    className={`mx-auto w-full max-w-7xl px-3 sm:px-4 md:px-6 xl:px-8 transition-all duration-500 rounded-none md:rounded-2xl xl:rounded-full border border-white/40 shadow-sm hover:shadow-lg overflow-visible ${
-                        scrolled ? "bg-white/90 backdrop-blur-xl xl:w-[95%]" : "bg-white/50 backdrop-blur-lg xl:w-[98%]"
-                    }`}
-                >
-                    <div className="flex items-center gap-2 sm:gap-3 min-h-[52px] py-1 min-w-0">
-                        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+            <header className="sticky top-0 z-50 w-full bg-white/55 backdrop-blur-xl border-b border-white/40 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+                    {/* Row 1 — hamburger + brand (left) | icons (right) */}
+                    <div className="flex items-center justify-between min-h-[60px] md:min-h-[68px] gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                             <button
                                 type="button"
                                 onClick={() => setCategoryMenuOpen(true)}
-                                className="p-2 hover:bg-white/60 rounded-full transition-colors shrink-0"
-                                aria-label="Open all categories"
+                                className={`inline-flex items-center py-2 hover:opacity-70 transition-opacity shrink-0 ${NAV_FONT}`}
+                                aria-label="Open menu"
                             >
-                                <Menu size={22} className="text-gray-800" />
+                                <Menu size={22} strokeWidth={1.5} aria-hidden />
                             </button>
                             <Link
                                 href="/"
-                                className="px-1.5 sm:px-3 py-2 text-lg sm:text-2xl font-playfair font-black tracking-tighter text-gray-900 hover:opacity-80 transition-opacity whitespace-nowrap"
+                                className={`hover:opacity-70 transition-opacity whitespace-nowrap uppercase tracking-[0.16em] text-lg md:text-[1.65rem] leading-tight truncate ${NAV_FONT}`}
                             >
-                                iMART
+                                Islamabad Mart
                             </Link>
                         </div>
 
-                        {/* Tablet / small laptop: no cramped link row — use category drawer */}
-                        {!showSearch && (
-                            <div className="hidden md:flex xl:hidden flex-1 justify-center min-w-0 px-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setCategoryMenuOpen(true)}
-                                    className="max-w-full truncate px-4 py-2 text-sm font-semibold text-gray-800 border border-gray-200 rounded-full hover:bg-white/80 transition-colors"
-                                >
-                                    Browse Categories
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Large screens only: full nav + hover submenus */}
-                        {!showSearch && (
-                            <div className="hidden xl:flex flex-1 items-center justify-center gap-5 2xl:gap-7 min-w-0 px-2">
-                                <Link
-                                    href={allProductsHref}
-                                    className={navLinkClassName({
-                                        highlight: false,
-                                        isActive: isAllProductsActive,
-                                        isOpen: false,
-                                    })}
-                                >
-                                    All Products
-                                </Link>
-                                <NavMenuItem item={STATIC_NAV[0]} />
-                                {primaryNav.primary.map((item) => (
-                                    <NavMenuItem key={item._id || item.label} item={item} />
-                                ))}
-                                <MoreCategoriesMenu items={primaryNav.overflow} />
-                                <NavMenuItem item={SALE_NAV} />
-                            </div>
-                        )}
-
-                        {showSearch && (
-                            <div className="hidden md:flex flex-1 min-w-0 px-2 max-w-xl mx-auto">
-                                <form onSubmit={handleSearch} className="w-full relative">
-                                    <input
-                                        autoFocus
-                                        type="text"
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                        placeholder="Search for products..."
-                                        className="w-full bg-white/80 border border-gray-200 rounded-full py-2.5 pl-5 pr-12 outline-none focus:ring-2 focus:ring-black/10 shadow-inner text-sm"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowSearch(false)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </form>
-                            </div>
-                        )}
-
-                        {/* md–lg: compact actions (avoids overlap with nav) */}
-                        <div className="hidden md:flex xl:hidden items-center gap-0.5 shrink-0 ml-auto">
-                            <button
-                                onClick={() => setShowSearch(!showSearch)}
-                                className={`p-2 hover:bg-white/60 rounded-full transition-all ${showSearch ? "bg-black text-white" : ""}`}
-                                aria-label="Search"
-                            >
-                                <Search
-                                    className={`w-5 h-5 ${showSearch ? "text-white" : "text-gray-700"}`}
-                                    strokeWidth={2}
-                                />
-                            </button>
-                            <button
-                                onClick={openCart}
-                                className="p-2 hover:bg-white/60 rounded-full transition-all relative"
-                            >
-                                <ShoppingBag className="w-5 h-5 text-gray-700" strokeWidth={2} />
-                                {items.length > 0 && (
-                                    <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center rounded-full border border-white">
-                                        {items.length}
-                                    </span>
-                                )}
-                            </button>
-                            <Link href="/profile" className="p-2 hover:bg-white/60 rounded-full transition-all">
-                                <User className="w-5 h-5 text-gray-700" strokeWidth={2} />
-                            </Link>
-                        </div>
-
-                        {/* xl+: full action bar */}
-                        <div className="hidden xl:flex items-center gap-0.5 shrink-0 ml-auto">
-                            <button
-                                onClick={() => setShowSearch(!showSearch)}
-                                className={`p-2.5 hover:bg-white/60 rounded-full transition-all ${showSearch ? "bg-black text-white" : ""}`}
-                                aria-label="Search"
-                            >
-                                <Search
-                                    className={`w-5 h-5 ${showSearch ? "text-white" : "text-gray-700"}`}
-                                    strokeWidth={2}
-                                />
-                            </button>
-                            <NotificationDropdown />
-                            <Link href="/wishlist" className="p-2.5 hover:bg-white/60 rounded-full transition-all">
-                                <Heart className="w-5 h-5 text-gray-700" strokeWidth={2} />
-                            </Link>
-                            <button
-                                onClick={openCart}
-                                className="p-2.5 hover:bg-white/60 rounded-full transition-all relative"
-                            >
-                                <ShoppingBag className="w-5 h-5 text-gray-700" strokeWidth={2} />
-                                {items.length > 0 && (
-                                    <span className="absolute top-1 right-1 w-4 h-4 bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center rounded-full border border-white">
-                                        {items.length}
-                                    </span>
-                                )}
-                            </button>
-                            <Link href="/profile" className="p-2.5 hover:bg-white/60 rounded-full transition-all">
-                                <User className="w-5 h-5 text-gray-700" strokeWidth={2} />
-                            </Link>
-                        </div>
-
-                        <div className="flex md:hidden items-center gap-0.5 shrink-0 ml-auto">
+                        <div className="flex justify-end items-center gap-1 sm:gap-2 shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setShowSearch((v) => !v)}
-                                className="p-2"
+                                className="p-2 hover:opacity-70 transition-opacity text-[#212529]"
                                 aria-label="Search"
                             >
-                                <Search size={22} className="text-gray-800" />
+                                <Search size={22} strokeWidth={1.5} />
                             </button>
-                            <NotificationDropdown />
-                            <button onClick={openCart} className="p-2 relative">
-                                <ShoppingBag className="w-6 h-6 text-gray-800" />
+                            <Link
+                                href="/profile"
+                                className="p-2 hover:opacity-70 transition-opacity text-[#212529]"
+                                aria-label="Account"
+                            >
+                                <User size={22} strokeWidth={1.5} />
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={openCart}
+                                className="p-2 hover:opacity-70 transition-opacity text-[#212529] relative"
+                                aria-label="Shopping bag"
+                            >
+                                <ShoppingBag size={22} strokeWidth={1.5} />
                                 {items.length > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-black text-white text-[10px] rounded-full flex items-center justify-center border border-white">
+                                    <span className="absolute top-1 right-0.5 min-w-[17px] h-[17px] px-0.5 bg-[#212529] text-white text-[10px] font-medium flex items-center justify-center rounded-full">
                                         {items.length}
                                     </span>
                                 )}
@@ -465,26 +157,32 @@ export default function Navbar() {
                     </div>
 
                     {showSearch && (
-                        <form onSubmit={handleSearch} className="md:hidden px-2 pb-3 relative">
+                        <form onSubmit={handleSearch} className="pb-4 relative">
                             <input
                                 autoFocus
                                 type="text"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 placeholder="Search products..."
-                                className="w-full bg-white/80 border border-gray-200 rounded-full py-2.5 pl-4 pr-10 outline-none text-sm"
+                                className={`w-full border border-gray-200/80 bg-white/70 py-2.5 pl-4 pr-10 outline-none focus:border-[#212529] text-base leading-6 ${NAV_FONT}`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowSearch(false)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#212529] hover:opacity-70"
+                                aria-label="Close search"
                             >
-                                <X size={16} />
+                                <X size={18} strokeWidth={1.5} />
                             </button>
                         </form>
                     )}
                 </div>
-            </nav>
+
+                {/* Row 2 — full-width category tabs */}
+                <Suspense fallback={null}>
+                    <NavbarLinesRow lines={navLines} />
+                </Suspense>
+            </header>
 
             <CategoryListPanel
                 isOpen={categoryMenuOpen}

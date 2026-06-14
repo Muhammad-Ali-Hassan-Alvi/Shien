@@ -191,28 +191,36 @@ export default function CategoryUpdateModal({
                         </div>
 
                         <div className="flex flex-wrap gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={showInNav}
-                                    onChange={(e) => setShowInNav(e.target.checked)}
-                                    className="rounded border-gray-300"
-                                />
-                                <span className="text-sm font-medium text-gray-700">Show in top navbar</span>
-                            </label>
-                            <p className="text-xs text-gray-500 w-full -mt-2 pl-6">
-                                Uncheck to hide from the header menu only. Active subcategories still appear in the ☰
-                                hamburger under Shop by Category.
-                            </p>
-                            <label className="flex items-center gap-2 cursor-pointer">
+                            <label className="flex items-center gap-2 cursor-pointer w-full">
                                 <input
                                     type="checkbox"
                                     checked={isActive}
                                     onChange={(e) => setIsActive(e.target.checked)}
                                     className="rounded border-gray-300"
                                 />
-                                <span className="text-sm font-medium text-gray-700">Active</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                    Visible on storefront
+                                </span>
                             </label>
+                            <p className="text-xs text-gray-500 w-full -mt-2 pl-6">
+                                Uncheck to hide this category from the navbar, product filters, product listings,
+                                and related products. The category is not deleted — use the eye icon on the list
+                                for a quick toggle.
+                            </p>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={showInNav}
+                                    onChange={(e) => setShowInNav(e.target.checked)}
+                                    disabled={!isActive}
+                                    className="rounded border-gray-300 disabled:opacity-50"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Show in top navbar</span>
+                            </label>
+                            <p className="text-xs text-gray-500 w-full -mt-2 pl-6">
+                                When visible, uncheck to hide from the header tabs only (still in hamburger menu
+                                and filters).
+                            </p>
                             {isRootCategory && (
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input

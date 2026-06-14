@@ -11,6 +11,7 @@ import Link from "next/link";
 import { toast } from "react-hot-toast";
 import { productsLink } from "@/app/lib/navLinks";
 import ProductCard from "./ProductCard";
+import ProductImageGallery from "./ProductImageGallery";
 import ProductReviews from "./ProductReviews";
 import ProductQA from "./ProductQA";
 import ShareProductButton from "./ShareProductButton";
@@ -30,6 +31,8 @@ export default function ProductView({ product, relatedProducts = [], variantConf
     const [selectedVariant, setSelectedVariant] = useState(initialVariant);
     const [quantity, setQuantity] = useState(1);
     const [activeImage, setActiveImage] = useState(0);
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [galleryStartIndex, setGalleryStartIndex] = useState(0);
     const [zoomPos, setZoomPos] = useState({ x: 0, y: 0 });
     const [showZoom, setShowZoom] = useState(false);
     const [zoomPanel, setZoomPanel] = useState({ top: 0, left: 0, width: 420, height: 560 });
@@ -154,6 +157,15 @@ export default function ProductView({ product, relatedProducts = [], variantConf
         setShowZoom(false);
     };
 
+    const openGallery = (idx) => {
+        setShowZoom(false);
+        hoveredCellRef.current = null;
+        setGalleryStartIndex(idx);
+        setGalleryOpen(true);
+    };
+
+    const closeGallery = () => setGalleryOpen(false);
+
     useEffect(() => {
         if (!showZoom) return;
 
@@ -190,12 +202,22 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                             {images.map((img, idx) => (
                                 <div
                                     key={`${img}-${idx}`}
-                                    className={`relative aspect-[3/4] bg-gray-100 overflow-hidden lg:cursor-crosshair ${
+                                    className={`relative aspect-[3/4] bg-gray-100 overflow-hidden lg:cursor-crosshair cursor-pointer ${
                                         images.length === 1 ? "col-span-2 max-w-md mx-auto w-full" : ""
                                     }`}
-                                    onMouseEnter={(e) => handleImageEnter(idx, e)}
+                                    onMouseEnter={(e) => !galleryOpen && handleImageEnter(idx, e)}
                                     onMouseLeave={handleImageLeave}
                                     onMouseMove={handleMouseMove}
+                                    onClick={() => openGallery(idx)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            openGallery(idx);
+                                        }
+                                    }}
+                                    aria-label={`Open image ${idx + 1} of ${images.length}`}
                                 >
                                     <Image
                                         src={img}
@@ -418,7 +440,7 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                 </div>
             )}
 
-            {showZoom && images.length > 0 && typeof document !== "undefined" &&
+            {showZoom && !galleryOpen && images.length > 0 && typeof document !== "undefined" &&
                 createPortal(
                     <div
                         className="hidden lg:block fixed z-[100] bg-white border border-gray-200 shadow-2xl overflow-hidden pointer-events-none"
@@ -440,6 +462,14 @@ export default function ProductView({ product, relatedProducts = [], variantConf
                     document.body
                 )
             }
+
+            <ProductImageGallery
+                images={images}
+                productName={product.name}
+                initialIndex={galleryStartIndex}
+                open={galleryOpen}
+                onClose={closeGallery}
+            />
 
         </div>
     );
