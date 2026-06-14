@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingBag, Search, User, Menu, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ShoppingBag, User, Menu } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useCartStore } from "@/store/useCartStore";
 import CategoryListPanel from "./CategoryListPanel";
+import NavbarSearch from "./NavbarSearch";
 import { productsLink } from "@/app/lib/navLinks";
 import { getLineCategories, getNavCategories } from "@/app/lib/categoryUtils";
 
@@ -57,13 +58,11 @@ function NavbarLinesRow({ lines }) {
 }
 
 export default function Navbar() {
-    const router = useRouter();
     const { openCart } = useUIStore();
     const { items } = useCartStore();
     const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
     const [categoryTree, setCategoryTree] = useState([]);
-    const [showSearch, setShowSearch] = useState(false);
-    const [query, setQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         async function fetchCategories() {
@@ -92,47 +91,88 @@ export default function Navbar() {
         };
     }, [categoryMenuOpen]);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        if (!query.trim()) return;
-        router.push(productsLink({ search: query.trim() }));
-        setShowSearch(false);
-        setCategoryMenuOpen(false);
-        setQuery("");
-    };
+    const closeMenu = () => setCategoryMenuOpen(false);
 
     return (
         <>
             <header className="sticky top-0 z-50 w-full bg-white/55 backdrop-blur-xl border-b border-white/40 shadow-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-                    {/* Row 1 — hamburger + brand (left) | icons (right) */}
-                    <div className="flex items-center justify-between min-h-[60px] md:min-h-[68px] gap-4">
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                {/* Desktop — full width, flush left/right groups */}
+                <div className="hidden md:flex w-full items-center min-h-[68px] gap-3 lg:gap-6 px-3 lg:px-4">
+                    <div className="flex items-center gap-2 lg:gap-3 shrink-0 min-w-0">
+                        <button
+                            type="button"
+                            onClick={() => setCategoryMenuOpen(true)}
+                            className={`inline-flex items-center p-2 -ml-2 hover:opacity-70 transition-opacity shrink-0 ${NAV_FONT}`}
+                            aria-label="Open menu"
+                        >
+                            <Menu size={22} strokeWidth={1.5} aria-hidden />
+                        </button>
+                        <Link
+                            href="/"
+                            className={`hover:opacity-70 transition-opacity whitespace-nowrap uppercase tracking-[0.12em] lg:tracking-[0.16em] text-lg lg:text-[1.65rem] leading-tight ${NAV_FONT}`}
+                        >
+                            Islamabad Mart
+                        </Link>
+                    </div>
+
+                    <div className="flex-1 flex justify-center min-w-0 px-2 lg:px-6">
+                        <div className="w-full max-w-md lg:max-w-xl xl:max-w-2xl">
+                            <Suspense fallback={null}>
+                                <NavbarSearch
+                                    categoryTree={categoryTree}
+                                    onCloseMenu={closeMenu}
+                                    query={searchQuery}
+                                    setQuery={setSearchQuery}
+                                />
+                            </Suspense>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-0 shrink-0 -mr-2">
+                        <Link
+                            href="/profile"
+                            className="p-2 hover:opacity-70 transition-opacity text-[#212529]"
+                            aria-label="Account"
+                        >
+                            <User size={22} strokeWidth={1.5} />
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={openCart}
+                            className="p-2 hover:opacity-70 transition-opacity text-[#212529] relative"
+                            aria-label="Shopping bag"
+                        >
+                            <ShoppingBag size={22} strokeWidth={1.5} />
+                            {items.length > 0 && (
+                                <span className="absolute top-1 right-0.5 min-w-[17px] h-[17px] px-0.5 bg-[#212529] text-white text-[10px] font-medium flex items-center justify-center rounded-full">
+                                    {items.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mobile — logo row edge-to-edge + search below */}
+                <div className="md:hidden w-full px-3">
+                    <div className="flex items-center justify-between min-h-[56px] gap-2">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
                             <button
                                 type="button"
                                 onClick={() => setCategoryMenuOpen(true)}
-                                className={`inline-flex items-center py-2 hover:opacity-70 transition-opacity shrink-0 ${NAV_FONT}`}
+                                className={`inline-flex items-center p-2 -ml-2 hover:opacity-70 transition-opacity shrink-0 ${NAV_FONT}`}
                                 aria-label="Open menu"
                             >
                                 <Menu size={22} strokeWidth={1.5} aria-hidden />
                             </button>
                             <Link
                                 href="/"
-                                className={`hover:opacity-70 transition-opacity whitespace-nowrap uppercase tracking-[0.16em] text-lg md:text-[1.65rem] leading-tight truncate ${NAV_FONT}`}
+                                className={`hover:opacity-70 transition-opacity uppercase tracking-[0.1em] text-base sm:text-lg leading-tight truncate min-w-0 ${NAV_FONT}`}
                             >
                                 Islamabad Mart
                             </Link>
                         </div>
 
-                        <div className="flex justify-end items-center gap-1 sm:gap-2 shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => setShowSearch((v) => !v)}
-                                className="p-2 hover:opacity-70 transition-opacity text-[#212529]"
-                                aria-label="Search"
-                            >
-                                <Search size={22} strokeWidth={1.5} />
-                            </button>
+                        <div className="flex items-center shrink-0 -mr-2">
                             <Link
                                 href="/profile"
                                 className="p-2 hover:opacity-70 transition-opacity text-[#212529]"
@@ -155,27 +195,16 @@ export default function Navbar() {
                             </button>
                         </div>
                     </div>
-
-                    {showSearch && (
-                        <form onSubmit={handleSearch} className="pb-4 relative">
-                            <input
-                                autoFocus
-                                type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Search products..."
-                                className={`w-full border border-gray-200/80 bg-white/70 py-2.5 pl-4 pr-10 outline-none focus:border-[#212529] text-base leading-6 ${NAV_FONT}`}
+                    <div className="pb-3">
+                        <Suspense fallback={null}>
+                            <NavbarSearch
+                                categoryTree={categoryTree}
+                                onCloseMenu={closeMenu}
+                                query={searchQuery}
+                                setQuery={setSearchQuery}
                             />
-                            <button
-                                type="button"
-                                onClick={() => setShowSearch(false)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#212529] hover:opacity-70"
-                                aria-label="Close search"
-                            >
-                                <X size={18} strokeWidth={1.5} />
-                            </button>
-                        </form>
-                    )}
+                        </Suspense>
+                    </div>
                 </div>
 
                 {/* Row 2 — full-width category tabs */}
