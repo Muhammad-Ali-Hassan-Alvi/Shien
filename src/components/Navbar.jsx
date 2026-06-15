@@ -2,60 +2,16 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { ShoppingBag, User, Menu } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useCartStore } from "@/store/useCartStore";
 import CategoryListPanel from "./CategoryListPanel";
 import NavbarSearch from "./NavbarSearch";
-import { productsLink } from "@/app/lib/navLinks";
-import { getLineCategories, getNavCategories } from "@/app/lib/categoryUtils";
+import NavbarCategoryNav from "./NavbarCategoryNav";
+import { splitNavCategories } from "@/app/lib/categoryUtils";
 
 const NAV_FONT =
     "font-[family-name:var(--font-montserrat)] font-normal text-[#212529]";
-
-function NavbarLinesRow({ lines }) {
-    const searchParams = useSearchParams();
-    const categoryParam = searchParams.get("category")?.toLowerCase();
-
-    const isLineActive = (line) => {
-        if (!categoryParam) return false;
-        if (line.name.toLowerCase() === categoryParam) return true;
-        const walk = (node) => {
-            if (node.name.toLowerCase() === categoryParam) return true;
-            return (node.children || []).some(walk);
-        };
-        return walk(line);
-    };
-
-    if (!lines?.length) return null;
-
-    return (
-        <div className="w-full border-t border-white/50 px-4 sm:px-6 md:px-8 lg:px-10">
-            <div
-                className={`flex flex-wrap items-center justify-center gap-x-5 sm:gap-x-8 md:gap-x-10 lg:gap-x-14 gap-y-2 py-3 w-full ${NAV_FONT}`}
-            >
-                {lines.map((line) => {
-                    const active = isLineActive(line);
-                    return (
-                        <Link
-                            key={line._id}
-                            href={productsLink({ category: line.name })}
-                            className={`shrink-0 text-sm md:text-[15px] uppercase tracking-[0.12em] leading-6 pb-1 border-b-2 transition-colors whitespace-nowrap ${
-                                active
-                                    ? "text-[#212529] border-[#212529] font-medium"
-                                    : "text-gray-700 border-transparent hover:text-[#212529] hover:border-gray-400"
-                            }`}
-                            title={line.name}
-                        >
-                            {line.name}
-                        </Link>
-                    );
-                })}
-            </div>
-        </div>
-    );
-}
 
 export default function Navbar() {
     const { openCart } = useUIStore();
@@ -77,11 +33,8 @@ export default function Navbar() {
         fetchCategories();
     }, []);
 
-    const navLines = useMemo(() => {
-        const lines = getLineCategories(categoryTree);
-        if (lines.length > 0) return lines;
-        return getNavCategories(categoryTree).slice(0, 8);
-    }, [categoryTree]);
+    const navSplit = useMemo(() => splitNavCategories(categoryTree), [categoryTree]);
+    const navLines = navSplit.all;
 
     useEffect(() => {
         if (!categoryMenuOpen) return;
@@ -209,7 +162,7 @@ export default function Navbar() {
 
                 {/* Row 2 — full-width category tabs */}
                 <Suspense fallback={null}>
-                    <NavbarLinesRow lines={navLines} />
+                    <NavbarCategoryNav categoryTree={categoryTree} />
                 </Suspense>
             </header>
 

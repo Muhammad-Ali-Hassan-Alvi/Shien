@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { X, ChevronLeft } from "lucide-react";
+import { X, ChevronLeft, Search } from "lucide-react";
 import { productsLink } from "@/app/lib/navLinks";
 import {
     buildHamburgerSidebarItems,
     getHamburgerPanelContent,
+    flattenCategoryTree,
+    findCategoryPathInTree,
 } from "@/app/lib/categoryUtils";
 
 const submenuLinkClass =
@@ -24,6 +26,7 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
     const [activeLineId, setActiveLineId] = useState(null);
     const [activeMenuId, setActiveMenuId] = useState(null);
     const [mobileSubView, setMobileSubView] = useState(false);
+    const [panelSearch, setPanelSearch] = useState("");
 
     const activeLine = useMemo(
         () => lineOptions.find((l) => l._id === activeLineId) || lineOptions[0] || null,
@@ -42,6 +45,51 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
         return getHamburgerPanelContent(activeMenuId, activeLine);
     }, [activeMenuId, activeLine]);
 
+    const flatCategories = useMemo(
+        () => flattenCategoryTree(allCategories || []),
+        [allCategories]
+    );
+
+    const searchResults = useMemo(() => {
+        const q = panelSearch.trim().toLowerCase();
+        if (q.length < 2) return [];
+
+        const categoryHits = flatCategories
+            .filter((cat) => cat.name.toLowerCase().includes(q))
+            .slice(0, 12)
+            .map((cat) => ({
+                type: "category",
+                key: cat._id,
+                name: cat.name,
+                breadcrumb:
+                    findCategoryPathInTree(allCategories, cat.name)?.join(" › ") || cat.name,
+                href: productsLink({ category: cat.name }),
+            }));
+
+        const extras = [];
+        if ("sale".includes(q) || q.includes("sale")) {
+            extras.push({
+                type: "sale",
+                key: "sale",
+                name: "Shop Sale",
+                breadcrumb: "All discounted products",
+                href: productsLink({ sort: "sale" }),
+            });
+        }
+
+        extras.push({
+            type: "search",
+            key: "product-search",
+            name: `Search products for "${panelSearch.trim()}"`,
+            breadcrumb: "Product search",
+            href: productsLink({ search: panelSearch.trim() }),
+        });
+
+        return [...extras, ...categoryHits];
+    }, [panelSearch, flatCategories, allCategories]);
+
+    const isSearchMode = panelSearch.trim().length >= 2;
+
     useEffect(() => {
         if (!isOpen) return;
         document.body.style.overflow = "hidden";
@@ -54,6 +102,7 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
         if (!isOpen) return;
         setActiveMenuId(null);
         setMobileSubView(false);
+        setPanelSearch("");
     }, [isOpen]);
 
     useEffect(() => {
@@ -120,7 +169,25 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
                     </button>
                 </div>
 
-                {lineOptions.length > 0 && (
+                <div className="px-5 sm:px-8 py-3 border-b border-gray-100 shrink-0">
+                    <div className="relative">
+                        <Search
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                            aria-hidden
+                        />
+                        <input
+                            type="search"
+                            value={panelSearch}
+                            onChange={(e) => setPanelSearch(e.target.value)}
+                            placeholder="Search categories or products..."
+                            className={`w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-full text-sm outline-none focus:border-[#212529] focus:ring-1 focus:ring-[#212529]/10 ${NAV_TEXT_CLASS}`}
+                            aria-label="Search menu"
+                        />
+                    </div>
+                </div>
+
+                {lineOptions.length > 0 && !isSearchMode && (
                     <div className="px-5 sm:px-8 py-4 border-b border-gray-100 flex flex-wrap gap-x-4 gap-y-2 sm:gap-6 shrink-0">
                         {lineOptions.map((line) => (
                             <button
@@ -140,6 +207,42 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
                 )}
 
                 <div className="flex-1 flex flex-col sm:flex-row min-h-0 overflow-hidden">
+                    {isSearchMode ? (
+                        <div className="flex-1 overflow-y-auto p-5 sm:p-8">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-4">
+                                Search results
+                            </p>
+                            {searchResults.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                    No categories match &ldquo;{panelSearch.trim()}&rdquo;.
+                                </p>
+                            ) : (
+                                <ul className="space-y-1">
+                                    {searchResults.map((item) => (
+                                        <li key={item.key}>
+                                            <Link
+                                                href={item.href}
+                                                onClick={onClose}
+                                                className={`block rounded-lg px-3 py-3 transition-colors hover:bg-gray-50 ${
+                                                    item.type === "sale"
+                                                        ? "text-red-600"
+                                                        : "text-gray-800"
+                                                }`}
+                                            >
+                                                <span className="text-sm font-medium block">
+                                                    {item.name}
+                                                </span>
+                                                <span className="text-xs text-gray-500">
+                                                    {item.breadcrumb}
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    ) : (
+                        <>
                     <aside
                         className={`sm:w-56 lg:w-64 border-b sm:border-b-0 sm:border-r border-gray-100 shrink-0 overflow-y-auto ${
                             showSubOnMobile ? "hidden sm:block" : "block"
@@ -286,6 +389,8 @@ export default function CategoryListPanel({ isOpen, onClose, lines = [], allCate
                             </div>
                         )}
                     </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="px-5 sm:px-8 py-4 border-t border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500 shrink-0">

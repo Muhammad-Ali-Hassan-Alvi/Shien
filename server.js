@@ -5,7 +5,10 @@ const next = require("next");
 
 loadEnvConfig(process.cwd());
 
-const dev = process.env.NODE_ENV !== "production";
+// `npm run dev` must always use the dev server, even if NODE_ENV=production is set globally.
+const dev =
+    process.env.npm_lifecycle_event === "dev" ||
+    (process.env.npm_lifecycle_event !== "start" && process.env.NODE_ENV !== "production");
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
 

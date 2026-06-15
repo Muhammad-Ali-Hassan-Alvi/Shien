@@ -210,6 +210,43 @@ export function getNavCategories(tree) {
     return (tree || []).filter((node) => node.isLine !== true);
 }
 
+export const NAV_PRIMARY_CATEGORY_LIMIT = 3;
+
+/** Fixed navbar tabs — order preserved; others go under “More”. */
+export const NAV_FEATURED_CATEGORY_NAMES = [
+    "Clothing",
+    "Electronics",
+    "Home Appliances",
+];
+
+/** Root nav tabs: featured names in the bar, remainder in “More”. */
+export function splitNavCategories(tree, featuredNames = NAV_FEATURED_CATEGORY_NAMES) {
+    const lines = getLineCategories(tree);
+    const roots = lines.length > 0 ? lines : getNavCategories(tree);
+    const sorted = [...roots].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name)
+    );
+
+    const primary = [];
+    for (const name of featuredNames) {
+        const match = sorted.find((c) => c.name.toLowerCase() === name.toLowerCase());
+        if (match) primary.push(match);
+    }
+
+    if (primary.length === 0) {
+        primary.push(...sorted.slice(0, NAV_PRIMARY_CATEGORY_LIMIT));
+    }
+
+    const primaryIds = new Set(primary.map((c) => String(c._id)));
+    const overflow = sorted.filter((c) => !primaryIds.has(String(c._id)));
+
+    return {
+        primary,
+        overflow,
+        all: sorted,
+    };
+}
+
 /**
  * Mega menu columns for navbar hover.
  * Leaf subcategories (no children) appear once as a linked heading — not title + duplicate row.
