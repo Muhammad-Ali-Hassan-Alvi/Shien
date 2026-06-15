@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
 import { productsLink } from "@/app/lib/navLinks";
 import {
@@ -34,6 +34,7 @@ function categoryIsActive(node, categoryParam) {
 
 export default function NavbarCategoryNav({ categoryTree }) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const categoryParam = searchParams.get("category")?.toLowerCase() || "";
     const sortParam = searchParams.get("sort")?.toLowerCase() || "";
@@ -56,6 +57,8 @@ export default function NavbarCategoryNav({ categoryTree }) {
     );
 
     const saleActive = sortParam === "sale";
+    const allProductsActive =
+        pathname === "/products" && !categoryParam && sortParam !== "sale";
     const moreActive = overflow.some((cat) => categoryIsActive(cat, categoryParam));
     const trimmedSearch = moreSearch.trim();
     const isFiltering = trimmedSearch.length > 0;
@@ -245,6 +248,14 @@ export default function NavbarCategoryNav({ categoryTree }) {
             <div
                 className={`flex flex-nowrap items-center justify-center gap-x-3 sm:gap-x-5 md:gap-x-8 lg:gap-x-10 py-2 sm:py-2.5 w-full ${NAV_FONT}`}
             >
+                <Link
+                    href={productsLink()}
+                    className={tabClass(allProductsActive)}
+                    title="All Products"
+                >
+                    All Products
+                </Link>
+
                 {primary.map((line) => (
                     <Link
                         key={line._id}
