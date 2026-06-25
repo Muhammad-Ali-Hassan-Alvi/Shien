@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { Share2, Link2, Check, X, Copy } from "lucide-react";
 import { toast } from "react-hot-toast";
 
+import { resolveSiteUrls } from "@/app/lib/siteUrl";
+
 export function getProductShareUrl(slug) {
     if (!slug) return "";
     if (typeof window !== "undefined") {
-        return `${window.location.origin}/product/${slug}`;
+        return `${resolveSiteUrls(window.location.href).siteUrl}/product/${slug}`;
     }
-    const base = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+    const base = resolveSiteUrls().siteUrl;
     return base ? `${base}/product/${slug}` : `/product/${slug}`;
 }
 

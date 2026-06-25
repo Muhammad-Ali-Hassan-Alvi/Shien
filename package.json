@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "node api.js && node server.js",
     "dev:next": "next dev",
-    "build": "next build",
-    "start": "node server.js",
+    "build": "node api.js && next build",
+    "start": "node api.js && node server.js",
     "start:next": "next start",
     "lint": "eslint"
   },
