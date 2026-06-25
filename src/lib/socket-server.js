@@ -14,9 +14,13 @@ export function attachSocketHandlers(io) {
     io.on("connection", (socket) => {
         const userId = socket.handshake.auth?.userId;
         const role = socket.handshake.auth?.role;
+        const guestSessionId = socket.handshake.auth?.guestSessionId;
 
         if (userId) {
             socket.join(`user:${userId}`);
+        }
+        if (guestSessionId) {
+            socket.join(`guest:${guestSessionId}`);
         }
         if (role === "admin") {
             socket.join("admin");
@@ -28,6 +32,14 @@ export function attachSocketHandlers(io) {
 
         socket.on("leave:product", (productId) => {
             if (productId) socket.leave(`product:${productId}`);
+        });
+
+        socket.on("join:chat", (ticketId) => {
+            if (ticketId) socket.join(`chat:${ticketId}`);
+        });
+
+        socket.on("leave:chat", (ticketId) => {
+            if (ticketId) socket.leave(`chat:${ticketId}`);
         });
     });
 }
@@ -82,5 +94,21 @@ export function emitQuestionUpdated(question) {
         const productId = String(question.product._id || question.product);
         io.to(`product:${productId}`).emit("question:updated", payload);
     }
+    return true;
+}
+
+export function emitChatMessage(ticketId, message) {
+    const io = getIO();
+    if (!io || !ticketId || !message) return false;
+    const payload = { ticketId: String(ticketId), message };
+    io.to(`chat:${ticketId}`).emit("chat:message", payload);
+    io.to("admin").emit("chat:message", payload);
+    return true;
+}
+
+export function emitChatListUpdate(meta) {
+    const io = getIO();
+    if (!io) return false;
+    io.to("admin").emit("chat:list-update", meta);
     return true;
 }

@@ -227,6 +227,15 @@ export function splitNavCategories(tree, featuredNames = NAV_FEATURED_CATEGORY_N
         (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name)
     );
 
+    // Few visible categories — show every root in the bar (All Products stays separate).
+    if (sorted.length <= NAV_PRIMARY_CATEGORY_LIMIT) {
+        return {
+            primary: sorted,
+            overflow: [],
+            all: sorted,
+        };
+    }
+
     const primary = [];
     for (const name of featuredNames) {
         const match = sorted.find((c) => c.name.toLowerCase() === name.toLowerCase());
@@ -245,6 +254,13 @@ export function splitNavCategories(tree, featuredNames = NAV_FEATURED_CATEGORY_N
         overflow,
         all: sorted,
     };
+}
+
+/** Count top-level shop categories (excludes line tabs). */
+export function countShopRootCategories(tree) {
+    const lines = getLineCategories(tree);
+    const roots = lines.length > 0 ? lines : getNavCategories(tree);
+    return roots.length;
 }
 
 /**

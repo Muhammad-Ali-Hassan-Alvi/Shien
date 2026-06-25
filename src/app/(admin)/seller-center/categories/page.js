@@ -1,8 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { ChevronRight, ChevronDown, Plus, FolderPlus, Trash2, Tag, Edit, Eye, EyeOff } from "lucide-react";
+import {
+    ChevronRight,
+    ChevronDown,
+    Plus,
+    FolderPlus,
+    Trash2,
+    Tag,
+    Edit,
+    Eye,
+    EyeOff,
+    Filter,
+} from "lucide-react";
 import DeleteModal from "@/components/admin/DeleteModal";
 import Loader from "@/components/admin/Loader";
 import CategoryUpdateModal from "@/components/admin/CategoryUpdateModal";
@@ -12,6 +23,71 @@ import {
     flattenCategoriesFlat,
     formatVariantSettingsLabel,
 } from "@/app/lib/categoryUtils";
+
+const VISIBILITY_FILTERS = {
+    all: "all",
+    visible: "visible",
+    hidden: "hidden",
+};
+
+function sortSiblingsByVisibility(nodes) {
+    return [...nodes].sort((a, b) => {
+        const aVis = a.isActive !== false ? 0 : 1;
+        const bVis = b.isActive !== false ? 0 : 1;
+        if (aVis !== bVis) return aVis - bVis;
+        return (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" });
+    });
+}
+
+function sortTreeByVisibility(nodes) {
+    const sorted = sortSiblingsByVisibility(nodes);
+    return sorted.map((node) => ({
+        ...node,
+        children: node.children?.length ? sortTreeByVisibility(node.children) : [],
+    }));
+}
+
+function filterTreeByVisibility(nodes, mode) {
+    if (mode === VISIBILITY_FILTERS.all) {
+        return sortTreeByVisibility(nodes);
+    }
+
+    return nodes.reduce((acc, node) => {
+        const isVisible = node.isActive !== false;
+        const filteredChildren = filterTreeByVisibility(node.children || [], mode);
+
+        if (mode === VISIBILITY_FILTERS.visible) {
+            if (isVisible) {
+                acc.push({ ...node, children: filteredChildren });
+            } else if (filteredChildren.length > 0) {
+                acc.push(...filteredChildren);
+            }
+        } else if (mode === VISIBILITY_FILTERS.hidden) {
+            if (!isVisible) {
+                acc.push({ ...node, children: filteredChildren });
+            } else if (filteredChildren.length > 0) {
+                acc.push(...filteredChildren);
+            }
+        }
+
+        return acc;
+    }, []);
+}
+
+function partitionRootSections(nodes) {
+    const visible = [];
+    const hidden = [];
+
+    for (const node of nodes) {
+        if (node.isActive !== false) visible.push(node);
+        else hidden.push(node);
+    }
+
+    return {
+        visible: sortSiblingsByVisibility(visible),
+        hidden: sortSiblingsByVisibility(hidden),
+    };
+}
 
 function CategoryTreeNode({
     node,
@@ -35,8 +111,8 @@ function CategoryTreeNode({
     return (
         <div>
             <div
-                className={`group flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
-                    !isVisible ? "opacity-60 bg-gray-50/80" : ""
+                className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors ${
+                    !isVisible ? "opacity-70 bg-gray-50/80" : ""
                 }`}
                 style={{ paddingLeft: `${depth * 20 + 12}px` }}
             >
@@ -54,15 +130,19 @@ function CategoryTreeNode({
 
                 <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{node.name}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
                         {node.isLine && (
                             <span className="text-indigo-600 font-bold uppercase tracking-wide">Line</span>
                         )}
-                        {!isVisible && <span className="text-red-500 font-medium">Hidden from shop</span>}
+                        {!isVisible && (
+                            <span className="text-red-500 font-medium">Hidden from shop</span>
+                        )}
                         {parentNode && parentNode.isActive === false && isVisible && (
                             <span className="text-orange-500">Parent hidden</span>
                         )}
-                        {!node.showInNav && isVisible && <span className="text-amber-500">Hidden from top nav</span>}
+                        {!node.showInNav && isVisible && (
+                            <span className="text-amber-500">Hidden from top nav</span>
+                        )}
                         <span className="text-indigo-500">{variantLabel}</span>
                         {node.customVariantSettings && (
                             <span className="text-violet-600 font-medium">Custom rules</span>
@@ -71,13 +151,13 @@ function CategoryTreeNode({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5 shrink-0">
                     <button
                         type="button"
                         onClick={() => onToggleVisibility(node)}
                         className={`p-1.5 rounded-md transition-colors ${
                             isVisible
-                                ? "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                                ? "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                                 : "text-red-500 hover:text-red-700 hover:bg-red-50"
                         }`}
                         title={
@@ -89,32 +169,30 @@ function CategoryTreeNode({
                     >
                         {isVisible ? <Eye size={15} /> : <EyeOff size={15} />}
                     </button>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         type="button"
                         onClick={() => onAddChild(node)}
-                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-md"
+                        className="p-1.5 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-md"
                         title="Add subcategory"
                     >
-                        <FolderPlus size={14} />
+                        <FolderPlus size={15} />
                     </button>
                     <button
                         type="button"
                         onClick={() => onEdit(node)}
-                        className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md"
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md"
                         title="Edit"
                     >
-                        <Edit size={14} />
+                        <Edit size={15} />
                     </button>
                     <button
                         type="button"
                         onClick={() => onDelete(node._id)}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md"
                         title="Delete"
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} />
                     </button>
-                    </div>
                 </div>
             </div>
 
@@ -141,13 +219,38 @@ function CategoryTreeNode({
     );
 }
 
+function CategorySection({ title, subtitle, accent, nodes, emptyMessage, ...nodeProps }) {
+    if (!nodes.length) return null;
+
+    return (
+        <div>
+            <div
+                className={`px-4 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2 ${accent}`}
+            >
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-700">{title}</p>
+                    {subtitle && <p className="text-[11px] text-gray-500 mt-0.5">{subtitle}</p>}
+                </div>
+                <span className="text-[11px] font-bold text-gray-400">{nodes.length}</span>
+            </div>
+            <div className="divide-y divide-gray-50">
+                {nodes.map((node) => (
+                    <CategoryTreeNode key={node._id} node={node} depth={0} {...nodeProps} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export default function CategoriesPage() {
     const [categoryTree, setCategoryTree] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newCat, setNewCat] = useState("");
     const [adding, setAdding] = useState(false);
-    const [addingUnder, setAddingUnder] = useState(null); // { parentId, name }
+    const [addingUnder, setAddingUnder] = useState(null);
     const [expanded, setExpanded] = useState(new Set());
+    const [visibilityFilter, setVisibilityFilter] = useState(VISIBILITY_FILTERS.all);
+    const [bulkUpdating, setBulkUpdating] = useState(false);
 
     const [editModal, setEditModal] = useState(null);
     const [deleteState, setDeleteState] = useState({ isOpen: false, id: null, isDeleting: false });
@@ -156,7 +259,13 @@ export default function CategoriesPage() {
         try {
             const res = await fetch("/api/categories?tree=true&admin=true");
             const json = await res.json();
+            if (res.status === 401) {
+                toast.error("Session expired. Please sign in again at /admin/login");
+                window.location.href = "/admin/login";
+                return;
+            }
             if (json.categories) setCategoryTree(json.categories);
+            else if (json.error) toast.error(json.error);
         } catch {
             toast.error("Failed to load categories");
         } finally {
@@ -167,6 +276,16 @@ export default function CategoriesPage() {
     useEffect(() => {
         fetchCategories();
     }, []);
+
+    const displayTree = useMemo(
+        () => filterTreeByVisibility(categoryTree, visibilityFilter),
+        [categoryTree, visibilityFilter]
+    );
+
+    const rootSections = useMemo(() => {
+        if (visibilityFilter !== VISIBILITY_FILTERS.all) return null;
+        return partitionRootSections(displayTree);
+    }, [displayTree, visibilityFilter]);
 
     const toggleExpand = (id) => {
         setExpanded((prev) => {
@@ -245,6 +364,37 @@ export default function CategoriesPage() {
         await handleUpdate(node._id, { isActive: !isVisible });
     };
 
+    const handleBulkVisibility = async (isActive) => {
+        const label = isActive ? "Showing all categories on shop" : "Hiding all categories from shop";
+        if (!confirm(`${label}?\n\nThis updates every category at once.`)) return;
+
+        setBulkUpdating(true);
+        const toastId = toast.loading(isActive ? "Showing all..." : "Hiding all...");
+        try {
+            const res = await fetch("/api/categories", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive }),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                toast.success(
+                    isActive
+                        ? `All ${json.modified} categories are now visible`
+                        : `All ${json.modified} categories are now hidden`,
+                    { id: toastId }
+                );
+                await fetchCategories();
+            } else {
+                toast.error(json.error || "Bulk update failed", { id: toastId });
+            }
+        } catch {
+            toast.error("Bulk update failed", { id: toastId });
+        } finally {
+            setBulkUpdating(false);
+        }
+    };
+
     const handleRemoveProduct = async (productId) => {
         const toastId = toast.loading("Removing product...");
         try {
@@ -291,6 +441,21 @@ export default function CategoriesPage() {
 
     const flatCategories = flattenCategoriesFlat(categoryTree);
 
+    const nodeProps = {
+        expanded,
+        onToggle: toggleExpand,
+        onEdit: setEditModal,
+        onDelete: (id) => setDeleteState({ isOpen: true, id, isDeleting: false }),
+        onAddChild: (parent) => setAddingUnder({ parentId: parent._id, name: "" }),
+        onToggleVisibility: handleToggleVisibility,
+        flatCategories,
+    };
+
+    const hasBothSections =
+        rootSections &&
+        rootSections.visible.length > 0 &&
+        rootSections.hidden.length > 0;
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -322,25 +487,92 @@ export default function CategoriesPage() {
                 </button>
             </form>
 
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Filter size={16} className="text-gray-500 shrink-0" />
+                    <span className="text-sm font-semibold text-gray-700">View:</span>
+                    {[
+                        { id: VISIBILITY_FILTERS.all, label: "All" },
+                        { id: VISIBILITY_FILTERS.visible, label: "Visible only" },
+                        { id: VISIBILITY_FILTERS.hidden, label: "Hidden only" },
+                    ].map((opt) => (
+                        <label
+                            key={opt.id}
+                            className="inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                            <input
+                                type="radio"
+                                name="visibility-filter"
+                                checked={visibilityFilter === opt.id}
+                                onChange={() => setVisibilityFilter(opt.id)}
+                                className="accent-black"
+                            />
+                            <span className="text-sm text-gray-600">{opt.label}</span>
+                        </label>
+                    ))}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:inline">
+                        Bulk:
+                    </span>
+                    <button
+                        type="button"
+                        disabled={bulkUpdating}
+                        onClick={() => handleBulkVisibility(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                        title="Show all categories on the shop at once"
+                    >
+                        <Eye size={14} />
+                        Show all
+                    </button>
+                    <button
+                        type="button"
+                        disabled={bulkUpdating}
+                        onClick={() => handleBulkVisibility(false)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold rounded-lg border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        title="Hide all categories from the shop at once"
+                    >
+                        <EyeOff size={14} />
+                        Hide all
+                    </button>
+                </div>
+            </div>
+
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 {categoryTree.length === 0 ? (
                     <div className="p-12 text-center text-gray-400">
                         No categories yet. Add a top-level category to get started.
                     </div>
+                ) : displayTree.length === 0 ? (
+                    <div className="p-12 text-center text-gray-400">
+                        No categories match this filter.
+                    </div>
+                ) : hasBothSections ? (
+                    <>
+                        <CategorySection
+                            title="Visible on shop"
+                            subtitle="Categories customers can browse"
+                            accent="bg-emerald-50/80"
+                            nodes={rootSections.visible}
+                            {...nodeProps}
+                        />
+                        <CategorySection
+                            title="Hidden from shop"
+                            subtitle="Not shown on the storefront"
+                            accent="bg-red-50/80"
+                            nodes={rootSections.hidden}
+                            {...nodeProps}
+                        />
+                    </>
                 ) : (
                     <div className="divide-y divide-gray-50">
-                        {categoryTree.map((node) => (
+                        {displayTree.map((node) => (
                             <CategoryTreeNode
                                 key={node._id}
                                 node={node}
                                 depth={0}
-                                expanded={expanded}
-                                onToggle={toggleExpand}
-                                onEdit={setEditModal}
-                                onDelete={(id) => setDeleteState({ isOpen: true, id, isDeleting: false })}
-                                onAddChild={(parent) => setAddingUnder({ parentId: parent._id, name: "" })}
-                                onToggleVisibility={handleToggleVisibility}
-                                flatCategories={flatCategories}
+                                {...nodeProps}
                             />
                         ))}
                     </div>

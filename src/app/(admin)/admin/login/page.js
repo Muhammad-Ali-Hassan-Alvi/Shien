@@ -51,7 +51,7 @@ export default function AdminLoginPage() {
                                 <Mail className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
                                 <input
                                     type="email"
-                                    name="email"
+                                    name="identifier"
                                     placeholder="admin@shein.pk"
                                     required
                                     className="w-full bg-white/50 border border-gray-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all font-medium text-gray-900 placeholder:text-gray-400"

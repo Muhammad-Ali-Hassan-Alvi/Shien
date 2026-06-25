@@ -1,47 +1,9 @@
-import nodemailer from "nodemailer";
+import { SendEmailUtil, isEmailConfigured } from "@/utils/emailsender";
+
+export { isEmailConfigured };
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@imart.com";
 const SUPPORT_PHONE = process.env.SUPPORT_PHONE || "";
-
-function getSmtpConfig() {
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || !user || !pass) {
-        return null;
-    }
-
-    return {
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-    };
-}
-
-function formatFromAddress() {
-    const raw =
-        process.env.SMTP_FROM ||
-        process.env.EMAIL_FROM ||
-        process.env.SMTP_USER ||
-        "noreply@imart.com";
-
-    const trimmed = String(raw).trim();
-
-    // Already "Name <email@domain.com>" — use as-is (avoid double-wrapping)
-    if (/^[^<]*<[^>@]+@[^>]+>$/.test(trimmed)) {
-        return trimmed;
-    }
-
-    const email = trimmed.includes("@") ? trimmed : process.env.SMTP_USER || trimmed;
-    return `"iMART" <${email}>`;
-}
-
-export function isEmailConfigured() {
-    return getSmtpConfig() !== null;
-}
 
 function formatShortOrderId(orderId) {
     return String(orderId).slice(-8).toUpperCase();
@@ -113,7 +75,7 @@ function buildOrderConfirmationHtml({ order, userName }) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Order confirmed — iMART</title>
+  <title>Order confirmed — Islamabad Mart</title>
 </head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:32px 16px;">
@@ -122,14 +84,14 @@ function buildOrderConfirmationHtml({ order, userName }) {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border:1px solid #e5e5e5;">
           <tr>
             <td style="background:#000;color:#fff;padding:28px 32px;">
-              <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;opacity:0.7;">iMART</p>
+              <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;opacity:0.7;">Islamabad Mart</p>
               <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-0.02em;">Order confirmed</h1>
             </td>
           </tr>
           <tr>
             <td style="padding:32px;color:#111;font-size:15px;line-height:1.6;">
               <p style="margin:0 0 16px;">Hi ${escapeHtml(userName || shipping.fullName || "there")},</p>
-              <p style="margin:0 0 24px;">Thank you for shopping with iMART. We have received your order and will process it shortly.</p>
+              <p style="margin:0 0 24px;">Thank you for shopping with Islamabad Mart. We have received your order and will process it shortly.</p>
               <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#666;">Order ID</p>
               <p style="margin:0 0 24px;font-size:18px;font-weight:700;font-family:monospace;">#${shortId}</p>
               <p style="margin:0 0 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:#666;">Items</p>
@@ -150,13 +112,13 @@ function buildOrderConfirmationHtml({ order, userName }) {
               <p style="margin:0;font-size:13px;color:#666;">
                 Questions? Contact us at
                 <a href="mailto:${escapeHtml(SUPPORT_EMAIL)}" style="color:#000;font-weight:600;">${escapeHtml(supportLine)}</a>
-                or visit the Help Center on imart.com.
+                or visit the Help Center on islamabadmart.com.
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding:20px 32px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center;">
-              © iMART · This email is your order receipt for COD purchases.
+              © Islamabad Mart · This email is your order receipt for COD purchases.
             </td>
           </tr>
         </table>
@@ -179,7 +141,7 @@ function buildOrderConfirmationText({ order, userName }) {
 
     return `Hi ${userName || shipping.fullName || "there"},
 
-Your iMART order #${shortId} is confirmed.
+Your Islamabad Mart order #${shortId} is confirmed.
 
 Items:
 ${lines.join("\n") || "  (none)"}
@@ -196,23 +158,11 @@ Payment: Cash on Delivery (COD) — pay when your package arrives.
 
 Support: ${SUPPORT_EMAIL}${SUPPORT_PHONE ? ` · ${SUPPORT_PHONE}` : ""}
 
-Thank you for shopping with iMART.`;
-}
-
-let transporter = null;
-
-function getTransporter() {
-    const config = getSmtpConfig();
-    if (!config) return null;
-    if (!transporter) {
-        transporter = nodemailer.createTransport(config);
-    }
-    return transporter;
+Thank you for shopping with Islamabad Mart.`;
 }
 
 /**
- * Sends order confirmation email. Never throws on SMTP misconfiguration;
- * logs and returns silently. Callers should wrap in try/catch for transport errors.
+ * Sends order confirmation email. Never throws on SMTP misconfiguration.
  */
 export async function sendOrderConfirmationEmail({ to, order, userName }) {
     if (!to) {
@@ -220,37 +170,22 @@ export async function sendOrderConfirmationEmail({ to, order, userName }) {
         return { sent: false, reason: "no_recipient" };
     }
 
-    const transport = getTransporter();
-    if (!transport) {
-        console.warn(
-            "[EmailService] SMTP not configured (SMTP_HOST, SMTP_USER, SMTP_PASS). Skipping order confirmation email."
-        );
-        return { sent: false, reason: "smtp_not_configured" };
-    }
-
-    const from = formatFromAddress();
     const shortId = formatShortOrderId(order._id);
-    const html = buildOrderConfirmationHtml({ order, userName });
-    const text = buildOrderConfirmationText({ order, userName });
+    const result = await SendEmailUtil({
+        to,
+        subject: `Order confirmed — #${shortId} | Islamabad Mart`,
+        text: buildOrderConfirmationText({ order, userName }),
+        html: buildOrderConfirmationHtml({ order, userName }),
+    });
 
-    try {
-        const info = await transport.sendMail({
-            from,
-            to,
-            subject: `Order confirmed — #${shortId} | iMART`,
-            text,
-            html,
-        });
-
-        if (process.env.NODE_ENV !== "production") {
-            console.info("[EmailService] Order confirmation sent to", to, info.messageId || "");
-        }
-
-        return { sent: true, messageId: info.messageId };
-    } catch (err) {
-        console.error("[EmailService] Order confirmation failed:", err.message);
-        return { sent: false, reason: "send_failed", error: err.message };
+    if (!result.sent) {
+        console.error(
+            "[EmailService] Order confirmation failed:",
+            result.error || result.reason
+        );
     }
+
+    return result;
 }
 
 /**
@@ -262,32 +197,28 @@ export async function sendAdminNewOrderEmail({ order, customerEmail, customerNam
         return { sent: false, reason: "no_admin_email" };
     }
 
-    const transport = getTransporter();
-    if (!transport) {
-        return { sent: false, reason: "smtp_not_configured" };
-    }
-
     const shortId = formatShortOrderId(order._id);
 
-    try {
-        const info = await transport.sendMail({
-            from: formatFromAddress(),
-            to: adminEmail,
-            subject: `New order #${shortId} — Rs. ${Number(order.totalAmount).toLocaleString("en-PK")}`,
-            text: `New COD order #${shortId}
+    const result = await SendEmailUtil({
+        to: adminEmail,
+        subject: `New order #${shortId} — Rs. ${Number(order.totalAmount).toLocaleString("en-PK")}`,
+        text: `New COD order #${shortId}
 Customer: ${customerName || "—"} (${customerEmail || "—"})
 Total: ${formatRs(order.totalAmount)}
 Items: ${order.items?.length || 0}
 City: ${order.shippingInfo?.city || "—"}
 
 Review in Seller Center → Orders.`,
-        });
+    });
 
-        return { sent: true, messageId: info.messageId };
-    } catch (err) {
-        console.error("[EmailService] Admin order email failed:", err.message);
-        return { sent: false, reason: "send_failed", error: err.message };
+    if (!result.sent) {
+        console.error(
+            "[EmailService] Admin order email failed:",
+            result.error || result.reason
+        );
     }
+
+    return result;
 }
 
 /**
@@ -298,19 +229,12 @@ export async function sendPasswordResetCodeEmail({ to, userName, code }) {
         return { sent: false, reason: "no_recipient" };
     }
 
-    const transport = getTransporter();
-    if (!transport) {
-        console.warn("[EmailService] SMTP not configured; cannot send password reset code.");
-        return { sent: false, reason: "smtp_not_configured" };
-    }
-
-    const from = formatFromAddress();
     const greeting = userName ? `Hi ${userName},` : "Hi,";
 
     const html = `
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111;">
       <p style="font-size:16px;">${escapeHtml(greeting)}</p>
-      <p style="font-size:14px;color:#444;">Use this code to reset your iMART password. It expires in <strong>15 minutes</strong>.</p>
+      <p style="font-size:14px;color:#444;">Use this code to reset your Islamabad Mart password. It expires in <strong>15 minutes</strong>.</p>
       <p style="font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;padding:24px;background:#f5f5f5;border-radius:8px;margin:24px 0;">${escapeHtml(code)}</p>
       <p style="font-size:13px;color:#666;">If you did not request this, you can ignore this email.</p>
       <p style="font-size:13px;color:#666;">Support: ${escapeHtml(SUPPORT_EMAIL)}</p>
@@ -318,20 +242,26 @@ export async function sendPasswordResetCodeEmail({ to, userName, code }) {
 
     const text = `${greeting}
 
-Your iMART password reset code: ${code}
+Your Islamabad Mart password reset code: ${code}
 
 This code expires in 15 minutes.
 
 If you did not request this, ignore this email.
 Support: ${SUPPORT_EMAIL}`;
 
-    await transport.sendMail({
-        from,
+    const result = await SendEmailUtil({
         to,
-        subject: `Your password reset code: ${code} | iMART`,
+        subject: `Your password reset code: ${code} | Islamabad Mart`,
         text,
         html,
     });
 
-    return { sent: true };
+    if (!result.sent) {
+        console.warn(
+            "[EmailService] Password reset email not sent:",
+            result.error || result.reason
+        );
+    }
+
+    return result;
 }

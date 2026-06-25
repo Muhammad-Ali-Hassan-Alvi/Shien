@@ -3,12 +3,14 @@ const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
 
-loadEnvConfig(process.cwd());
-
 // `npm run dev` must always use the dev server, even if NODE_ENV=production is set globally.
 const dev =
     process.env.npm_lifecycle_event === "dev" ||
     (process.env.npm_lifecycle_event !== "start" && process.env.NODE_ENV !== "production");
+
+// Second arg must match `dev` — otherwise production `.env.production.local` wins locally
+// and NextAuth sets callback-url to the live domain (islamabadmart.com).
+loadEnvConfig(process.cwd(), dev);
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3000", 10);
 

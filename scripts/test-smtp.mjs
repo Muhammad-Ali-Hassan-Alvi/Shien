@@ -1,30 +1,29 @@
 import dotenv from "dotenv";
-import nodemailer from "nodemailer";
+import { SendEmailUtil, getDefaultFromAddress, isEmailConfigured } from "../src/utils/emailsender.js";
 
 dotenv.config({ path: ".env.local" });
 
-const raw = process.env.SMTP_FROM || process.env.SMTP_USER;
-const trimmed = String(raw).trim();
-const from = /^[^<]*<[^>@]+@[^>]+>$/.test(trimmed)
-    ? trimmed
-    : `"iMART" <${trimmed.includes("@") ? trimmed : process.env.SMTP_USER}>`;
+if (!isEmailConfigured()) {
+    console.error("FAILED — set SMTP_HOST, SMTP_USER, SMTP_PASS in .env.local");
+    process.exit(1);
+}
 
-const transport = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+const to = process.env.ADMIN_ORDER_EMAIL || process.env.EMAIL_USER;
+const from = getDefaultFromAddress();
+
+console.log("From:", from);
+console.log("To:", to);
+
+const result = await SendEmailUtil({
+    to,
+    subject: "Islamabad Mart SMTP test",
+    text: "If you see this, order confirmation emails should work.",
+    html: "<p>If you see this, order confirmation emails should work.</p>",
 });
 
-try {
-    const info = await transport.sendMail({
-        from,
-        to: process.env.ADMIN_ORDER_EMAIL,
-        subject: "iMART SMTP test",
-        text: "If you see this, order confirmation emails should work.",
-    });
-    console.log("SUCCESS", info.messageId);
-} catch (e) {
-    console.error("FAILED", e.message);
+if (result.sent) {
+    console.log("SUCCESS", result.messageId);
+} else {
+    console.error("FAILED", result.error || result.reason);
     process.exit(1);
 }

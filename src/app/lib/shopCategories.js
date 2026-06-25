@@ -3,6 +3,7 @@ import {
     ACTIVE_CATEGORY_FILTER,
     buildCategoryTree,
     collectCategoryNamesFromTree,
+    countShopRootCategories,
 } from "@/app/lib/categoryUtils";
 
 function escapeRegex(str) {
@@ -36,4 +37,10 @@ export function buildShopCategoryQuery(activeNames) {
 export async function getShopCategoryTree() {
     const categories = await Category.find(ACTIVE_CATEGORY_FILTER).lean();
     return buildCategoryTree(categories);
+}
+
+/** When only one department is visible, All Products should list every shop item. */
+export async function shouldShowAllProductsWithoutCategoryGate() {
+    const tree = await getShopCategoryTree();
+    return countShopRootCategories(tree) <= 1;
 }

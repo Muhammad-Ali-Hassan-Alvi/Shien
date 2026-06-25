@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ChevronDown, X } from "lucide-react";
+import { ChevronRight, ChevronDown, X, Check } from "lucide-react";
 import ProductPriceFilter from "@/components/ProductPriceFilter";
 
 function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
@@ -61,13 +61,14 @@ function CategoryTreeFilter({ nodes, activeCategory, onSelect, depth = 0 }) {
                             <button
                                 type="button"
                                 onClick={() => onSelect(node.name)}
-                                className={`flex-1 text-left py-2 px-2.5 rounded-md text-[15px] transition-colors ${
+                                className={`flex-1 text-left py-2 px-2.5 rounded-md text-[15px] transition-colors flex items-center justify-between gap-2 ${
                                     isActive
                                         ? "bg-gray-900 text-white font-semibold"
                                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                                 }`}
                             >
-                                {node.name}
+                                <span>{node.name}</span>
+                                {isActive && <Check size={16} className="shrink-0" aria-hidden />}
                             </button>
                         </div>
                         {hasChildren && isOpen && (
@@ -100,8 +101,8 @@ export default function ProductFilterSidebar({
     onMobileClose,
 }) {
     const sidebarContent = (
-        <div className="space-y-8">
-            <div>
+        <div className="space-y-0">
+            <div className="pb-8">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-gray-900">Category</h3>
                     {activeCategory && (
@@ -117,13 +118,14 @@ export default function ProductFilterSidebar({
                 <button
                     type="button"
                     onClick={() => onCategoryChange("")}
-                    className={`w-full text-left py-2.5 px-3 rounded-md text-[15px] mb-2 transition-colors ${
+                    className={`w-full text-left py-2.5 px-3 rounded-md text-[15px] mb-2 transition-colors flex items-center justify-between gap-2 ${
                         !activeCategory
                             ? "bg-gray-900 text-white font-semibold"
                             : "text-gray-600 hover:bg-gray-100"
                     }`}
                 >
-                    All Products
+                    <span>All Products</span>
+                    {!activeCategory && <Check size={16} className="shrink-0" aria-hidden />}
                 </button>
                 {categoryTree.length > 0 ? (
                     <CategoryTreeFilter
@@ -136,7 +138,7 @@ export default function ProductFilterSidebar({
                 )}
             </div>
 
-            <div>
+            <div className="pt-8 border-t border-gray-200">
                 <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-gray-900 mb-4">Price Range</h3>
                 {priceBounds ? (
                     <ProductPriceFilter
@@ -154,7 +156,7 @@ export default function ProductFilterSidebar({
                 <button
                     type="button"
                     onClick={onClear}
-                    className="w-full py-2.5 text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="w-full mt-8 py-2.5 text-sm font-semibold border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                     Clear All Filters
                 </button>

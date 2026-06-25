@@ -62,8 +62,15 @@ export default async function AdminHelpCenterPage() {
                                             <div className="flex flex-col">
                                                 <span className="font-bold text-gray-900 mb-0.5">{ticket.subject}</span>
                                                 <span className="text-xs text-gray-500">
-                                                    by {ticket.user?.name || 'Unknown User'} ({ticket.user?.email})
+                                                    by {ticket.user?.name || ticket.guestName || 'Guest'}
+                                                    {(ticket.user?.email || ticket.guestEmail) &&
+                                                        ` (${ticket.user?.email || ticket.guestEmail})`}
                                                 </span>
+                                                {ticket.channel === 'live-chat' && (
+                                                    <span className="text-[10px] text-violet-600 font-bold mt-0.5">
+                                                        Live Chat
+                                                    </span>
+                                                )}
                                                 {ticket.order && (
                                                     <span className="text-[10px] text-indigo-500 font-bold mt-1">
                                                         Order #{ticket.order.toString().slice(-6)}

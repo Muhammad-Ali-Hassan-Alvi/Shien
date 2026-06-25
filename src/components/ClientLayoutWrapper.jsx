@@ -14,6 +14,7 @@ import { Toaster } from 'react-hot-toast';
 import { SessionProvider } from "next-auth/react";
 import { SocketProvider } from "@/context/SocketProvider";
 import CartHydrator from "@/components/CartHydrator";
+import LiveChatWidget from "@/components/live-chat/LiveChatWidget";
 
 function WishlistHydrator({ isAdmin }) {
   const { status } = useSession();
@@ -52,6 +53,7 @@ export default function ClientLayoutWrapper({ children, session }) {
       )}
       
       {!isAdmin && <CartDrawer />}
+      {!isAdmin && <LiveChatWidget />}
       
       <Toaster
           position="bottom-right"

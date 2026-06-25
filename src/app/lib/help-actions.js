@@ -8,6 +8,7 @@ import {
     notifyAllAdmins,
 } from "@/lib/notificationService";
 import { revalidatePath } from "next/cache";
+import { emitChatMessage, emitChatListUpdate } from "@/lib/socket-server";
 
 /* --- User Actions --- */
 
@@ -118,6 +119,16 @@ export async function replyToTicket(ticketId, message, sender = "user") {
         }
 
         await ticket.save();
+
+        const lastMessage = ticket.messages[ticket.messages.length - 1];
+        if (ticket.channel === "live-chat" && lastMessage) {
+            emitChatMessage(String(ticket._id), {
+                sender: lastMessage.sender,
+                message: lastMessage.message,
+                createdAt: lastMessage.createdAt,
+            });
+            emitChatListUpdate({ ticketId: String(ticket._id), action: "message" });
+        }
 
         revalidatePath(`/profile/help-center/${ticketId}`);
         revalidatePath(`/seller-center/help-center/${ticketId}`);

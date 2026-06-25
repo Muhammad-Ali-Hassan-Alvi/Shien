@@ -22,7 +22,15 @@ const TicketSchema = new mongoose.Schema(
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true
+            default: null
+        },
+        guestName: { type: String, default: null },
+        guestEmail: { type: String, default: null },
+        guestSessionId: { type: String, default: null, index: true },
+        channel: {
+            type: String,
+            enum: ['help-center', 'live-chat'],
+            default: 'help-center'
         },
         order: {
             type: mongoose.Schema.Types.ObjectId,
@@ -43,11 +51,10 @@ const TicketSchema = new mongoose.Schema(
             enum: ['Low', 'Medium', 'High'],
             default: 'Medium'
         },
-        messages: [MessageSchema] // Initial message + replies
+        messages: [MessageSchema]
     },
     { timestamps: true }
 );
 
-// Prevent overwrite
 const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", TicketSchema);
 export default Ticket;

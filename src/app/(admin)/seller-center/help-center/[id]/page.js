@@ -102,20 +102,24 @@ export default async function AdminTicketDetailPage({ params }) {
 
                         <div className="flex items-center gap-4 mb-4">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-lg">
-                                {ticket.user?.name?.[0] || "U"}
+                                {ticket.user?.name?.[0] || ticket.guestName?.[0] || "G"}
                             </div>
                             <div>
                                 <p className="font-bold text-gray-900 leading-tight">
-                                    {ticket.user?.name || "Unknown"}
+                                    {ticket.user?.name || ticket.guestName || "Guest"}
                                 </p>
-                                <p className="text-xs text-gray-500">{ticket.user?.role || "User"}</p>
+                                <p className="text-xs text-gray-500">
+                                    {ticket.channel === "live-chat" ? "Live Chat" : ticket.user?.role || "Guest"}
+                                </p>
                             </div>
                         </div>
 
                         <div className="space-y-3 text-sm">
                             <div className="flex items-center gap-3 text-gray-600">
                                 <Mail size={16} className="text-gray-400" />
-                                <span className="truncate">{ticket.user?.email || "N/A"}</span>
+                                <span className="truncate">
+                                    {ticket.user?.email || ticket.guestEmail || "N/A"}
+                                </span>
                             </div>
                             <div className="flex items-center gap-3 text-gray-600">
                                 <Phone size={16} className="text-gray-400" />

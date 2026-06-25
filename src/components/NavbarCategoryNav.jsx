@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, Check } from "lucide-react";
 import { productsLink } from "@/app/lib/navLinks";
 import {
     splitNavCategories,
@@ -16,7 +16,7 @@ const NAV_FONT =
     "font-[family-name:var(--font-montserrat)] font-normal text-[#212529]";
 
 const tabClass = (active) =>
-    `shrink-0 text-xs sm:text-sm md:text-[15px] uppercase tracking-[0.08em] sm:tracking-[0.1em] md:tracking-[0.12em] leading-6 pb-1 border-b-2 transition-colors whitespace-nowrap ${
+    `shrink-0 inline-flex items-center gap-1 text-xs sm:text-sm md:text-[15px] uppercase tracking-[0.08em] sm:tracking-[0.1em] md:tracking-[0.12em] leading-6 pb-1 border-b-2 transition-colors whitespace-nowrap ${
         active
             ? "text-[#212529] border-[#212529] font-medium"
             : "text-gray-700 border-transparent hover:text-[#212529] hover:border-gray-400"
@@ -253,19 +253,24 @@ export default function NavbarCategoryNav({ categoryTree }) {
                     className={tabClass(allProductsActive)}
                     title="All Products"
                 >
+                    {allProductsActive && <Check size={14} className="shrink-0" aria-hidden />}
                     All Products
                 </Link>
 
-                {primary.map((line) => (
+                {primary.map((line) => {
+                    const active = categoryIsActive(line, categoryParam);
+                    return (
                     <Link
                         key={line._id}
                         href={productsLink({ category: line.name })}
-                        className={tabClass(categoryIsActive(line, categoryParam))}
+                        className={tabClass(active)}
                         title={line.name}
                     >
+                        {active && <Check size={14} className="shrink-0" aria-hidden />}
                         {line.name}
                     </Link>
-                ))}
+                    );
+                })}
 
                 <Link
                     href={productsLink({ sort: "sale" })}

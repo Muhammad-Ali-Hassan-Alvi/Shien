@@ -13,6 +13,7 @@ import {
 import {
     getShopVisibleCategoryNames,
     buildShopCategoryQuery,
+    shouldShowAllProductsWithoutCategoryGate,
 } from "@/app/lib/shopCategories";
 import { createManyUserNotifications, notifyLowStockIfNeeded } from "@/lib/notificationService";
 import {
@@ -131,7 +132,10 @@ export async function GET(req) {
                 }
             }
         } else if (!isAdminList && shopCategoryNames) {
-            Object.assign(query, buildShopCategoryQuery(shopCategoryNames));
+            const singleDepartment = await shouldShowAllProductsWithoutCategoryGate();
+            if (!singleDepartment) {
+                Object.assign(query, buildShopCategoryQuery(shopCategoryNames));
+            }
         }
 
         if (search) {
@@ -221,6 +225,11 @@ export async function GET(req) {
                     if (parts.length > 0) {
                         boundsQuery.category = new RegExp(parts.join("[\\s\\-_]*"), "i");
                     }
+                }
+            } else {
+                const singleDepartment = await shouldShowAllProductsWithoutCategoryGate();
+                if (!singleDepartment && shopCategoryNames) {
+                    Object.assign(boundsQuery, buildShopCategoryQuery(shopCategoryNames));
                 }
             }
             const [agg] = await Product.aggregate([

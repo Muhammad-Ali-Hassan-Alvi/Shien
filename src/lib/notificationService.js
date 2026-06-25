@@ -103,8 +103,33 @@ export async function notifyAllAdmins({ type, message, link }) {
     }));
 
     const docs = await createManyUserNotifications(items);
+
+    for (const doc of docs) {
+        emitToAdmins("notification", serializeNotification(doc));
+    }
     emitToAdmins("notifications:refresh");
+
     return docs;
+}
+
+/** IDs that may own admin notifications for the signed-in seller-center user. */
+export async function getAdminNotificationRecipientIds(session) {
+    if (!session?.user?.id) return [];
+
+    await connectDB();
+    const ids = new Set([String(session.user.id)]);
+
+    const email = session.user.email?.trim()?.toLowerCase();
+    if (email) {
+        const [adminDoc, userDoc] = await Promise.all([
+            Admin.findOne({ email }).select("_id").lean(),
+            User.findOne({ email }).select("_id").lean(),
+        ]);
+        if (adminDoc) ids.add(String(adminDoc._id));
+        if (userDoc) ids.add(String(userDoc._id));
+    }
+
+    return [...ids];
 }
 
 /**

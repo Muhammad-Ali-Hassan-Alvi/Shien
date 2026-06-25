@@ -1,17 +1,24 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, User, ShieldCheck } from "lucide-react";
-import { replyToTicket } from "@/app/lib/help-actions";
 import { toast } from "react-hot-toast";
-import { useRouter } from "next/navigation";
+import { useSocket } from "@/context/SocketProvider";
+
+const POLL_MS = 4000;
 
 export default function AdminChatInterface({ ticket }) {
+    const { socket, connected } = useSocket();
     const [message, setMessage] = useState("");
     const [sending, setSending] = useState(false);
+    const [messages, setMessages] = useState(ticket.messages || []);
     const messagesEndRef = useRef(null);
-    const router = useRouter();
+    const ticketId = ticket._id;
+
+    useEffect(() => {
+        setMessages(ticket.messages || []);
+    }, [ticket.messages]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -19,29 +26,93 @@ export default function AdminChatInterface({ ticket }) {
 
     useEffect(() => {
         scrollToBottom();
-    }, [ticket.messages]);
+    }, [messages]);
+
+    const refreshMessages = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/chat/conversations/${ticketId}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.conversation?.messages) {
+                setMessages(data.conversation.messages);
+            }
+        } catch (e) {
+            console.error("Failed to refresh chat", e);
+        }
+    }, [ticketId]);
+
+    useEffect(() => {
+        if (!socket) return;
+        socket.emit("join:chat", ticketId);
+
+        const onMessage = ({ ticketId: id, message: msg }) => {
+            if (String(id) !== String(ticketId)) return;
+            setMessages((prev) => {
+                const exists = prev.some(
+                    (m) =>
+                        m.message === msg.message &&
+                        m.sender === msg.sender &&
+                        new Date(m.createdAt).getTime() ===
+                            new Date(msg.createdAt).getTime()
+                );
+                if (exists) return prev;
+                return [...prev, msg];
+            });
+        };
+
+        socket.on("chat:message", onMessage);
+        return () => {
+            socket.emit("leave:chat", ticketId);
+            socket.off("chat:message", onMessage);
+        };
+    }, [socket, ticketId]);
+
+    useEffect(() => {
+        if (connected) return;
+        const interval = setInterval(refreshMessages, POLL_MS);
+        return () => clearInterval(interval);
+    }, [connected, refreshMessages]);
 
     const handleSend = async (e) => {
         e.preventDefault();
         if (!message.trim()) return;
 
         setSending(true);
-        const res = await replyToTicket(ticket._id, message, 'admin');
-
-        if (res.error) {
-            toast.error(res.error);
-        } else {
+        try {
+            const res = await fetch(`/api/chat/conversations/${ticketId}/messages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: message.trim(), sender: "admin" }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Failed to send");
+                return;
+            }
             setMessage("");
-            router.refresh();
+            setMessages((prev) => {
+                const m = data.message;
+                const exists = prev.some(
+                    (x) =>
+                        x.message === m.message &&
+                        x.sender === m.sender &&
+                        new Date(x.createdAt).getTime() ===
+                            new Date(m.createdAt).getTime()
+                );
+                if (exists) return prev;
+                return [...prev, m];
+            });
+        } catch {
+            toast.error("Failed to send");
+        } finally {
+            setSending(false);
         }
-        setSending(false);
     };
 
     return (
         <div className="flex-1 flex flex-col bg-white border border-gray-200 border-t-0 rounded-b-xl overflow-hidden h-full">
-            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
-                {ticket.messages.map((msg, idx) => {
+                {messages.map((msg, idx) => {
                     const isMe = msg.sender === 'admin';
 
                     return (
@@ -75,7 +146,6 @@ export default function AdminChatInterface({ ticket }) {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
             <div className="p-4 bg-white border-t border-gray-100">
                 <form onSubmit={handleSend} className="relative flex items-center gap-2">
                     <input

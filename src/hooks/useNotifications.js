@@ -47,7 +47,7 @@ export function useNotifications({ autoOpenOnSale = false, onAutoOpen, limit = 3
     useEffect(() => {
         if (!session?.user?.id) return;
 
-        const intervalMs = connected ? 15000 : 5000;
+        const intervalMs = connected ? 15000 : 4000;
         pollRef.current = setInterval(fetchNotifications, intervalMs);
 
         return () => {
@@ -76,7 +76,30 @@ export function useNotifications({ autoOpenOnSale = false, onAutoOpen, limit = 3
             }
         };
 
-        const onRefresh = () => fetchNotifications();
+        const onRefresh = async () => {
+            if (!session?.user?.id) return;
+            try {
+                const res = await fetch(`/api/notifications?limit=${limit}`);
+                const data = await res.json();
+                if (!data.notifications) return;
+
+                setNotifications((prev) => {
+                    const prevIds = new Set(prev.map((n) => n._id));
+                    const incoming = data.notifications;
+                    const brandNew = incoming.filter((n) => !prevIds.has(n._id) && !n.isRead);
+                    if (brandNew.length > 0) {
+                        brandNew.forEach((n) => {
+                            toast(n.message, { icon: "🔔", duration: 4000 });
+                        });
+                    }
+                    return incoming;
+                });
+                const unread = data.notifications.filter((n) => !n.isRead).length;
+                setUnreadCount(unread);
+            } catch (error) {
+                console.error("Failed to refresh notifications", error);
+            }
+        };
 
         socket.on("notification", onNotification);
         socket.on("notifications:refresh", onRefresh);

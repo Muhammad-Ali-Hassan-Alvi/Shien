@@ -210,6 +210,30 @@ export async function PUT(req) {
     }
 }
 
+/** Bulk set isActive on all categories (admin). */
+export async function PATCH(req) {
+    try {
+        const { error: authError } = await requireAdmin();
+        if (authError) return authError;
+
+        await connectDB();
+        const { isActive } = await req.json();
+
+        if (typeof isActive !== "boolean") {
+            return NextResponse.json({ error: "isActive boolean required" }, { status: 400 });
+        }
+
+        const result = await Category.updateMany({}, { $set: { isActive } });
+
+        return NextResponse.json({
+            success: true,
+            modified: result.modifiedCount,
+        });
+    } catch (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
 export async function DELETE(req) {
     try {
         const { error: authError } = await requireAdmin();
